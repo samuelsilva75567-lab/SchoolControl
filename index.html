@@ -1,1 +1,56 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolControl | Painel Escolar</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>SchoolControl</h2>
+
+        <nav>
+            <button onclick="abrirTela('inicio')">Início</button>
+            <button onclick="abrirTela('alunos')">Alunos</button>
+            <button onclick="abrirTela('entrada')">Entrada e saída</button>
+            <button onclick="abrirTela('historico')">Histórico</button>
+            <button onclick="abrirTela('relatorios')">Relatórios</button>
+        </nav>
+    </div>
+
+    <main class="conteudo">
+        <header>
+            <h1>Painel Administrativo</h1>
+            <p>Bem-vindo ao SchoolControl!</p>
+        </header>
+
+        <section class="resumo">
+            <div class="card">
+                <h3>Alunos cadastrados</h3>
+                <p id="totalAlunos">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Entradas hoje</h3>
+                <p id="totalEntradas">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Saídas hoje</h3>
+                <p id="totalSaidas">0</p>
+            </div>
+        </section>
+
+        <section id="areaConteudo">
+            <h2>Bem-vindo!</h2>
+            <p>Selecione uma opção no menu lateral.</p>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
