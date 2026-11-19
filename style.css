@@ -165,3 +165,521 @@ button {
     }
 }
 
+
+/* ===== CADASTRO DE ALUNOS ===== */
+
+#areaConteudo form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 550px;
+    margin: 25px 0 35px;
+}
+
+#areaConteudo form label {
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+#areaConteudo form input {
+    width: 100%;
+    padding: 14px;
+    background: #080f1d;
+    color: #ffffff;
+    border: 1px solid #29415f;
+    border-radius: 9px;
+    outline: none;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+#areaConteudo form input:focus {
+    border-color: #3b9cff;
+    box-shadow: 0 0 0 3px rgba(59, 156, 255, 0.15);
+}
+
+#areaConteudo form input::placeholder {
+    color: #718096;
+}
+
+#areaConteudo form button {
+    background: #1976d2;
+    color: #ffffff;
+    border: none;
+    padding: 14px;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: 0.3s;
+}
+
+#areaConteudo form button:hover {
+    background: #258cf0;
+    transform: translateY(-2px);
+}
+
+/* TÍTULO DA LISTA */
+
+#areaConteudo h3 {
+    color: #ffffff;
+    margin: 30px 0 18px;
+    font-size: 19px;
+}
+
+/* CARTÕES DOS ALUNOS */
+
+.aluno-item {
+    background: #0b1729;
+    border: 1px solid #233b5b;
+    border-left: 4px solid #258cf0;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 12px;
+    transition: 0.3s;
+}
+
+.aluno-item:hover {
+    border-color: #3b9cff;
+    transform: translateX(3px);
+}
+
+.aluno-item strong {
+    color: #60a5fa;
+    font-size: 16px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.aluno-item p {
+    color: #cbd5e1;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* TELA DE ENTRADA E SAÍDA */
+
+.cabecalho-movimentacao {
+    margin-bottom: 25px;
+}
+
+.cabecalho-movimentacao h2 {
+    color: #ffffff;
+    font-size: 25px;
+    margin-bottom: 8px;
+}
+
+.cabecalho-movimentacao p {
+    color: #94a3b8;
+}
+
+.painel-movimentacao {
+    background: #0b1729;
+    border: 1px solid #233b5b;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.form-movimentacao {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 650px;
+}
+
+.campo-aluno {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.campo-aluno label {
+    color: #cbd5e1;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.campo-aluno select {
+    width: 100%;
+    padding: 14px;
+    border-radius: 9px;
+    border: 1px solid #29415f;
+    background: #080f1d;
+    color: #ffffff;
+    font-size: 15px;
+}
+
+.botoes-movimentacao {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.botoes-movimentacao button {
+    flex: 1;
+    min-width: 180px;
+    padding: 15px;
+    border: none;
+    border-radius: 9px;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.botao-entrada {
+    background: #1976d2;
+}
+
+.botao-entrada:hover {
+    background: #258cf0;
+}
+
+.botao-saida {
+    background: #7546d8;
+}
+
+.botao-saida:hover {
+    background: #9064ed;
+}
+
+.botoes-movimentacao button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.aviso-alunos {
+    margin-top: 18px;
+    color: #fbbf24;
+}
+
+.area-recentes h3 {
+    color: #ffffff;
+    margin-bottom: 18px;
+}
+
+.area-recentes .aluno-item {
+    background: #0b1729;
+    border-left-color: #3182ce;
+}
+
+@media (max-width: 600px) {
+    .painel-movimentacao {
+        padding: 16px;
+    }
+
+    .botoes-movimentacao {
+        flex-direction: column;
+    }
+
+    .botoes-movimentacao button {
+        width: 100%;
+    }
+}
+
+/* HISTÓRICO DE MOVIMENTAÇÕES */
+
+.cabecalho-historico {
+    margin-bottom: 25px;
+}
+
+.cabecalho-historico h2 {
+    color: #ffffff;
+    font-size: 25px;
+    margin-bottom: 8px;
+}
+
+.cabecalho-historico p {
+    color: #94a3b8;
+}
+
+.painel-historico {
+    background: #0b1729;
+    border: 1px solid #233b5b;
+    border-radius: 14px;
+    padding: 22px;
+    overflow: hidden;
+}
+
+.topo-historico {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.topo-historico h3 {
+    color: #ffffff;
+    font-size: 19px;
+}
+
+.total-registros {
+    background: #172b48;
+    color: #60a5fa;
+    padding: 8px 13px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.tabela-responsiva {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tabela-historico {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+.tabela-historico th {
+    background: #14243b;
+    color: #94a3b8;
+    text-align: left;
+    padding: 16px;
+    font-size: 13px;
+}
+
+.tabela-historico td {
+    padding: 17px 16px;
+    border-bottom: 1px solid #233b5b;
+    color: #dbeafe;
+    font-size: 14px;
+}
+
+.tabela-historico tbody tr:hover {
+    background: #13243b;
+}
+
+.status-movimentacao {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-entrada {
+    background: rgba(25, 118, 210, 0.18);
+    color: #60a5fa;
+    border: 1px solid #1976d2;
+}
+
+.status-saida {
+    background: rgba(117, 70, 216, 0.18);
+    color: #b69aff;
+    border: 1px solid #7546d8;
+}
+
+.historico-vazio {
+    text-align: center;
+    padding: 35px !important;
+    color: #94a3b8 !important;
+}
+
+@media (max-width: 700px) {
+    .painel-historico {
+        padding: 14px;
+    }
+}
+
+/* RELATÓRIOS */
+
+.cabecalho-relatorios {
+    margin-bottom: 25px;
+}
+
+.cabecalho-relatorios h2 {
+    color: #ffffff;
+    font-size: 25px;
+    margin-bottom: 8px;
+}
+
+.cabecalho-relatorios p {
+    color: #94a3b8;
+}
+
+.grade-relatorios {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 25px;
+}
+
+.card-relatorio {
+    background: #0b1729;
+    border: 1px solid #233b5b;
+    border-left: 4px solid #3182ce;
+    border-radius: 13px;
+    padding: 23px;
+    transition: 0.3s;
+}
+
+.card-relatorio:hover {
+    border-color: #3182ce;
+    transform: translateY(-3px);
+}
+
+.card-relatorio h3 {
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: normal;
+    margin-bottom: 15px;
+}
+
+.card-relatorio p {
+    color: #60a5fa;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.painel-relatorio-detalhado {
+    background: #0b1729;
+    border: 1px solid #233b5b;
+    border-radius: 13px;
+    padding: 24px;
+}
+
+.painel-relatorio-detalhado h3 {
+    color: #ffffff;
+    margin-bottom: 18px;
+}
+
+.painel-relatorio-detalhado p {
+    color: #cbd5e1;
+    padding: 12px 0;
+    border-bottom: 1px solid #233b5b;
+}
+
+@media (max-width: 700px) {
+    .grade-relatorios {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* FILTROS DOS RELATÓRIOS */
+
+.filtros-relatorio {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 22px 0;
+}
+
+.filtros-relatorio label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #cbd5e1;
+    font-size: 14px;
+}
+
+.filtros-relatorio input {
+    background: #080f1d;
+    color: #ffffff;
+    border: 1px solid #29415f;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.filtros-relatorio button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 13px 17px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.filtros-relatorio button:hover {
+    background: #258cf0;
+}
+
+#resultadoFiltroRelatorio {
+    margin-top: 22px;
+    padding: 18px;
+    background: #111d30;
+    border: 1px solid #233b5b;
+    border-radius: 10px;
+}
+
+#resultadoFiltroRelatorio p {
+    color: #cbd5e1;
+    margin: 10px 0;
+}
+
+/* CONTROLES DO HISTÓRICO */
+
+/* Campo de pesquisa */
+#pesquisaHistorico {
+    width: 260px;
+    padding: 12px;
+    background: #0b1729;
+    color: #ffffff;
+    border: 1px solid #29476b;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    margin: 8px 8px 12px 0;
+}
+
+#pesquisaHistorico::placeholder {
+    color: #91a4bd;
+}
+
+#pesquisaHistorico:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Menu de seleção */
+#filtroTipoHistorico {
+    padding: 12px;
+    background: #0b1729;
+    color: #ffffff;
+    border: 1px solid #29476b;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    margin: 8px 8px 12px 0;
+    cursor: pointer;
+}
+
+#filtroTipoHistorico:focus {
+    border-color: #3b82f6;
+}
+
+/* Opções do menu */
+#filtroTipoHistorico option {
+    background: #0b1729;
+    color: #ffffff;
+}
+
+/* Botão limpar histórico */
+button[onclick="limparHistorico()"] {
+    padding: 12px 16px;
+    background: #172b45;
+    color: #60a5fa;
+    border: 1px solid #31547d;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    margin: 8px 0 12px;
+}
+
+button[onclick="limparHistorico()"]:hover {
+    background: #24466f;
+    color: #ffffff;
+    border-color: #3b82f6;
+}
