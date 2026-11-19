@@ -1,4 +1,3 @@
-
 // ==========================================
 // SCHOOLCONTROL - SISTEMA PRINCIPAL
 // ==========================================
@@ -263,6 +262,8 @@ function atualizarListaAlunos() {
             <p>Turma: ${escaparHTML(aluno.turma)}</p>
 
             <p>Matrícula: ${escaparHTML(aluno.matricula)}</p>
+
+            <p>Código QR (ID): <code>${escaparHTML(aluno.id)}</code></p>
 
         </div>
     `).join("");
