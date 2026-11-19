@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SchoolControl | Leitor QR Code</title>
+
+    <link rel="stylesheet" href="qrcode.css">
+</head>
+<body>
+
+    <main class="leitor-container">
+
+        <header class="leitor-header">
+            <div class="logo">
+                <h1>School<span>Control</span></h1>
+                <p>Controle de entrada e saída</p>
+            </div>
+
+            <div class="status-sistema">
+                <span class="status-indicador"></span>
+                <span>Leitor disponível</span>
+            </div>
+        </header>
+
+        <section class="leitor-conteudo">
+
+            <div class="titulo-leitor">
+                <h2>Leitura de QR Code</h2>
+                <p>
+                    Posicione o QR Code do aluno em frente à câmera
+                    para realizar a identificação.
+                </p>
+            </div>
+
+            <div class="painel-camera">
+
+                <div class="camera-area">
+                    <div id="reader">
+                        <div class="camera-placeholder">
+                            <div class="camera-icon">▣</div>
+                            <h3>Câmera aguardando</h3>
+                            <p>A câmera aparecerá aqui quando for iniciada.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instrucoes-camera">
+                    <span class="icone-info">i</span>
+                    <p>
+                        Mantenha o QR Code dentro da área de leitura
+                        e aguarde a identificação.
+                    </p>
+                </div>
+
+                <button id="iniciarLeitura" class="botao-iniciar">
+                    Iniciar câmera
+                </button>
+
+                <p id="statusLeitor" class="mensagem-status">
+                    Aguardando início da leitura.
+                </p>
+
+            </div>
+
+            <div id="resultadoLeitura" class="resultado-leitura">
+                <h3>Resultado da leitura</h3>
+                <p id="mensagemResultado">
+                    Nenhum aluno identificado.
+                </p>
+            </div>
+
+        </section>
+
+        <footer class="leitor-footer">
+            <p>SchoolControl © 2026</p>
+            <p>Sistema de controle escolar</p>
+        </footer>
+
+    </main>
+
+    <script src="qrcode.js"></script>
+
+</body>
+</html>
+
