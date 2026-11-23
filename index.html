@@ -6,7 +6,7 @@
     <title>SchoolControl | Painel Administrativo</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Estilos da Tela de Login Administrativo */
+        /* Tela de Login Administrativo */
         .login-overlay {
             position: fixed;
             inset: 0;
@@ -77,20 +77,94 @@
             margin-bottom: 14px;
             display: none;
         }
+
+        /* Cabeçalho e Menu Estilizados do Painel */
+        .admin-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+        .admin-header {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .admin-header h1 {
+            font-size: 26px;
+            color: #f8fafc;
+            margin: 0 0 4px 0;
+        }
+        .admin-header h1 span {
+            color: #3b82f6;
+        }
+        .admin-header p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin: 0;
+        }
         .acoes-topo {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            margin-top: 12px;
         }
         .btn-qr-atalho {
-            background: #10b981 !important;
-            color: #042f2e !important;
-            font-weight: bold;
+            background: #10b981;
+            color: #022c22;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-qr-atalho:hover {
+            background: #34d399;
         }
         .btn-sair-admin {
-            background: #ef4444 !important;
-            color: #ffffff !important;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid #ef4444;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-sair-admin:hover {
+            background: #ef4444;
+            color: #ffffff;
+        }
+        .admin-nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .admin-nav button {
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #1e293b;
+            padding: 11px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .admin-nav button:hover,
+        .admin-nav button.ativo {
+            background: #2563eb;
+            border-color: #3b82f6;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -128,9 +202,9 @@
         </div>
     </div>
 
-    <!-- PAINEL PRINCIPAL (OCULTO ATÉ FAZER LOGIN) -->
-    <div id="painelAdminPrincipal" style="display: none;">
-        <header class="topo">
+    <!-- PAINEL PRINCIPAL -->
+    <div id="painelAdminPrincipal" class="admin-wrapper" style="display: none;">
+        <header class="admin-header">
             <div>
                 <h1>School<span>Control</span></h1>
                 <p>Painel Administrativo Escolar</p>
@@ -146,7 +220,7 @@
             </div>
         </header>
 
-        <nav class="menu">
+        <nav class="admin-nav">
             <button onclick="abrirTela('inicio')">Início</button>
             <button onclick="abrirTela('alunos')">Alunos</button>
             <button onclick="abrirTela('entrada')">Entrada / Saída</button>

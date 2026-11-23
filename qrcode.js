@@ -1,88 +1,39 @@
 // ==========================================
-// SCHOOLCONTROL - SISTEMA PRINCIPAL + LOGIN
+// SCHOOLCONTROL - QR CODE OFICIAL + IDENTIFICAÇÃO 1 SEGUNDO
 // ==========================================
 
-// Credenciais padrão iniciais (você pode alterar dentro do painel)
-const EMAIL_PADRAO = "admin@escola.com";
-const SENHA_PADRAO = "admin123";
+const painelQrEscola = document.getElementById("painelQrEscola");
+const qrcodeContainer = document.getElementById("qrcodeContainer");
+const resultadoLeitura = document.getElementById("resultadoLeitura");
+const mensagemResultado = document.getElementById("mensagemResultado");
+const statusLeitor = document.getElementById("statusLeitor");
+const badgeStatus = document.getElementById("badgeStatus");
 
-function obterCredenciaisAdmin() {
-    const salvo = JSON.parse(localStorage.getItem("schoolcontrol_admin_credenciais") || "null");
-    if (salvo && salvo.email && salvo.senha) {
-        return salvo;
-    }
-    return { email: EMAIL_PADRAO, senha: SENHA_PADRAO };
-}
-
-function verificarSessaoAdmin() {
-    const logado = sessionStorage.getItem("schoolcontrol_admin_logado") === "true";
-    const telaLogin = document.getElementById("telaLoginAdmin");
-    const painel = document.getElementById("painelAdminPrincipal");
-
-    if (!telaLogin || !painel) return;
-
-    if (logado) {
-        telaLogin.style.display = "none";
-        painel.style.display = "block";
-        atualizarResumo();
-        mostrarTelaInicio();
-    } else {
-        telaLogin.style.display = "flex";
-        painel.style.display = "none";
-    }
-}
-
-document.getElementById("formLoginAdmin")?.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const emailDigitado = document.getElementById("emailAdmin").value.trim().toLowerCase();
-    const senhaDigitada = document.getElementById("senhaAdmin").value;
-    const erroBox = document.getElementById("erroLoginAdmin");
-
-    const credenciais = obterCredenciaisAdmin();
-
-    if (emailDigitado === credenciais.email.toLowerCase() && senhaDigitada === credenciais.senha) {
-        erroBox.style.display = "none";
-        sessionStorage.setItem("schoolcontrol_admin_logado", "true");
-        verificarSessaoAdmin();
-    } else {
-        erroBox.style.display = "block";
-    }
-});
-
-function sairDoPainel() {
-    sessionStorage.removeItem("schoolcontrol_admin_logado");
-    document.getElementById("senhaAdmin").value = "";
-    verificarSessaoAdmin();
-}
-
-function abrirPaginaQrCode() {
-    const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
-    window.open(`${urlBase}/qrcode.html`, "_blank");
-}
-
+const CHAVE_PADRAO_ESCOLA = "SCHOOLCONTROL-A30DC0FB-F9E9-467A-886D-542D9B820F67";
 
 // ==========================================
-// 1. DADOS DOS ALUNOS E MOVIMENTAÇÕES
+// 1. EXTRAIR CHAVE OFICIAL
 // ==========================================
 
-let alunos = [];
-let movimentacoes = [];
+function extrairChave(texto) {
+    const limpo = String(texto ?? "").trim();
+    if (!limpo) return "";
 
-try {
-    alunos = JSON.parse(localStorage.getItem("schoolcontrol_alunos")) || [];
-    movimentacoes = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes")) || [];
-} catch (erro) {
-    alunos = [];
-    movimentacoes = [];
+    try {
+        const url = new URL(limpo);
+        const chaveUrl = url.searchParams.get("chave");
+        if (chaveUrl) return chaveUrl.trim();
+    } catch {
+        // Texto direto
+    }
+
+    return limpo;
 }
 
-function salvarAlunos() {
-    localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunos));
-}
-
-function salvarMovimentacoes() {
-    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(movimentacoes));
+function obterChaveOficialAtiva() {
+    const salvoNoPainel = (localStorage.getItem("schoolcontrol_qr_oficial") || "").trim();
+    const chaveExtraida = extrairChave(salvoNoPainel);
+    return chaveExtraida || CHAVE_PADRAO_ESCOLA;
 }
 
 function escaparHTML(texto) {
@@ -95,552 +46,242 @@ function escaparHTML(texto) {
     })[letra]);
 }
 
-function dataDeHoje() {
-    const agora = new Date();
-    const ano = agora.getFullYear();
-    const mes = String(agora.getMonth() + 1).padStart(2, "0");
-    const dia = String(agora.getDate()).padStart(2, "0");
-    return `${ano}-${mes}-${dia}`;
+// ==========================================
+// 2. EXIBIR O QR CODE OFICIAL NA TELA (SEM TRAVAR)
+// ==========================================
+
+function renderizarQrCodeOficial() {
+    const chave = obterChaveOficialAtiva();
+    const urlBase = window.location.origin + window.location.pathname;
+    const linkCompleto = `${urlBase}?chave=${encodeURIComponent(chave)}`;
+
+    qrcodeContainer.style.background = "#ffffff";
+    qrcodeContainer.style.padding = "16px";
+    qrcodeContainer.style.borderRadius = "14px";
+    qrcodeContainer.innerHTML = "";
+
+    // Gera a imagem nítida do QR Code com fallback automático caso a biblioteca local não esteja carregada
+    const imgQr = document.createElement("img");
+    imgQr.alt = "QR Code Oficial SchoolControl";
+    imgQr.width = 240;
+    imgQr.height = 240;
+    imgQr.style.display = "block";
+    imgQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=${encodeURIComponent(linkCompleto)}`;
+
+    imgQr.onerror = function () {
+        qrcodeContainer.innerHTML = "";
+        if (window.QRCode) {
+            new QRCode(qrcodeContainer, {
+                text: linkCompleto,
+                width: 240,
+                height: 240,
+                colorDark: "#080d18",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            qrcodeContainer.innerHTML = `<p style="color:#080d18;font-size:13px;max-width:220px;word-break:break-all;">${escaparHTML(linkCompleto)}</p>`;
+        }
+    };
+
+    qrcodeContainer.appendChild(imgQr);
+
+    if (badgeStatus) badgeStatus.textContent = "QR Code ativo";
+    if (statusLeitor) statusLeitor.textContent = "QR Code oficial pronto para leitura pelos alunos.";
 }
 
-
 // ==========================================
-// 2. ATUALIZAR CONTADORES
-// ==========================================
-
-function atualizarResumo() {
-    const totalAlunos = document.getElementById("totalAlunos");
-    const totalEntradas = document.getElementById("totalEntradas");
-    const totalSaidas = document.getElementById("totalSaidas");
-
-    const hoje = dataDeHoje();
-    const registrosHoje = movimentacoes.filter(item => item.dia === hoje);
-
-    if (totalAlunos) totalAlunos.textContent = alunos.length;
-    if (totalEntradas) totalEntradas.textContent = registrosHoje.filter(item => item.tipo === "Entrada").length;
-    if (totalSaidas) totalSaidas.textContent = registrosHoje.filter(item => item.tipo === "Saída").length;
-}
-
-
-// ==========================================
-// 3. NAVEGAÇÃO
+// 3. IDENTIFICAÇÃO RÁPIDA DO ALUNO NO CELULAR
 // ==========================================
 
-function abrirTela(tela) {
-    const area = document.getElementById("areaConteudo");
-    if (!area) return;
+function solicitarIdentificacaoAluno() {
+    painelQrEscola.style.display = "none";
+    resultadoLeitura.style.display = "block";
+    resultadoLeitura.style.borderColor = "#3b82f6";
 
-    if (tela === "inicio") mostrarTelaInicio();
-    else if (tela === "alunos") mostrarTelaAlunos();
-    else if (tela === "entrada") mostrarTelaMovimentacao();
-    else if (tela === "historico") mostrarHistorico();
-    else if (tela === "relatorios") mostrarRelatorios();
-}
+    mensagemResultado.innerHTML = `
+        <h3 style="color: #93c5fd; font-size: 20px; margin-bottom: 6px;">
+            Primeiro Acesso no Celular
+        </h3>
+        <p style="font-size: 14px; opacity: 0.85; margin-bottom: 16px;">
+            Preencha apenas uma vez. Nos próximos dias sua entrada será liberada em 1 segundo!
+        </p>
 
+        <form id="formIdentificacaoRapida" style="text-align: left;">
+            <label style="display: block; font-size: 13px; margin-bottom: 4px;">Seu Nome Completo</label>
+            <input
+                type="text"
+                id="alunoNomeCelular"
+                placeholder="Ex: João Pedro Silva"
+                required
+                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #080d18; color: #fff; margin-bottom: 12px;"
+            >
 
-// ==========================================
-// 4. TELA INICIAL (QR CODE OFICIAL + ACESSO ADMIN)
-// ==========================================
+            <label style="display: block; font-size: 13px; margin-bottom: 4px;">Sua Turma</label>
+            <input
+                type="text"
+                id="alunoTurmaCelular"
+                placeholder="Ex: 9º ano B"
+                required
+                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #080d18; color: #fff; margin-bottom: 12px;"
+            >
 
-function mostrarTelaInicio() {
-    const area = document.getElementById("areaConteudo");
-    if (!area) return;
+            <label style="display: block; font-size: 13px; margin-bottom: 4px;">Matrícula</label>
+            <input
+                type="text"
+                id="alunoMatriculaCelular"
+                placeholder="Ex: 202601"
+                required
+                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #080d18; color: #fff; margin-bottom: 16px;"
+            >
 
-    const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
-    const credenciais = obterCredenciaisAdmin();
-
-    area.innerHTML = `
-        <h2>Bem-vindo ao SchoolControl!</h2>
-        <p>Gerencie o QR Code da portaria, alunos e registros de acesso.</p>
-
-        <div class="painel-movimentacao" style="margin-top: 20px;">
-            <h3>QR Code Oficial da Escola</h3>
-            <p>
-                Gere ou cole o link oficial do QR Code da portaria.
-                Use o botão verde no topo para abrir a tela do QR Code em outra aba.
-            </p>
-
-            <form id="formQrOficial" style="margin-top: 14px;">
-                <label for="inputQrOficial">Link / Conteúdo do QR Code Oficial</label>
-                <input
-                    type="text"
-                    id="inputQrOficial"
-                    value="${escaparHTML(codigoAtual)}"
-                    placeholder="Clique em Gerar Link Oficial do QR Code"
-                    required
-                >
-
-                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-                    <button type="button" onclick="gerarCodigoAleatorioQR()">
-                        Gerar Novo QR Code
-                    </button>
-
-                    <button type="submit">
-                        Salvar QR Code Oficial
-                    </button>
-
-                    <button type="button" onclick="abrirPaginaQrCode()">
-                        Ir para Tela do QR Code ↗
-                    </button>
-                </div>
-            </form>
-
-            <p id="statusQrOficial" style="margin-top: 12px; font-weight: bold; color: #60a5fa;">
-                ${codigoAtual ? "✓ QR Code oficial configurado e ativo." : "⚠ Usando QR Code padrão até você salvar um novo."}
-            </p>
-        </div>
-
-        <div class="painel-movimentacao" style="margin-top: 24px;">
-            <h3>Segurança do Administrador</h3>
-            <p>Altere o e-mail e a senha de acesso a este painel administrativo.</p>
-
-            <form id="formAlterarCredenciais" style="margin-top: 14px;">
-                <label for="novoEmailAdmin">E-mail de acesso</label>
-                <input
-                    type="email"
-                    id="novoEmailAdmin"
-                    value="${escaparHTML(credenciais.email)}"
-                    required
-                >
-
-                <label for="novaSenhaAdmin">Nova senha</label>
-                <input
-                    type="password"
-                    id="novaSenhaAdmin"
-                    value="${escaparHTML(credenciais.senha)}"
-                    minlength="4"
-                    required
-                >
-
-                <button type="submit" style="margin-top: 10px;">
-                    Atualizar Login Administrativo
-                </button>
-            </form>
-        </div>
-    `;
-
-    document.getElementById("formQrOficial").addEventListener("submit", function (event) {
-        event.preventDefault();
-        const valor = document.getElementById("inputQrOficial").value.trim();
-        if (!valor) return;
-
-        localStorage.setItem("schoolcontrol_qr_oficial", valor);
-        document.getElementById("statusQrOficial").textContent =
-            "✓ QR Code oficial salvo com sucesso!";
-        alert("QR Code oficial atualizado!");
-    });
-
-    document.getElementById("formAlterarCredenciais").addEventListener("submit", function (event) {
-        event.preventDefault();
-        const email = document.getElementById("novoEmailAdmin").value.trim();
-        const senha = document.getElementById("novaSenhaAdmin").value;
-
-        if (!email || !senha) return;
-
-        localStorage.setItem("schoolcontrol_admin_credenciais", JSON.stringify({ email, senha }));
-        alert("E-mail e senha do administrador atualizados com sucesso!");
-    });
-}
-
-function gerarCodigoAleatorioQR() {
-    const campo = document.getElementById("inputQrOficial");
-    if (!campo) return;
-
-    const chaveSecreta = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
-    const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
-    campo.value = `${urlBase}/qrcode.html?chave=${chaveSecreta}`;
-}
-
-
-// ==========================================
-// 5. TELA DE ALUNOS
-// ==========================================
-
-function mostrarTelaAlunos() {
-    const area = document.getElementById("areaConteudo");
-
-    area.innerHTML = `
-        <h2>Gestão de Alunos</h2>
-        <p>Cadastre e consulte os alunos.</p>
-
-        <form id="formAluno">
-            <label>Nome do aluno</label>
-            <input type="text" id="nomeAluno" placeholder="Digite o nome" required>
-
-            <label>Turma</label>
-            <input type="text" id="turmaAluno" placeholder="Ex: 8º ano A" required>
-
-            <label>Matrícula</label>
-            <input type="text" id="matriculaAluno" placeholder="Digite uma matrícula" required>
-
-            <button type="submit">Cadastrar aluno</button>
+            <button type="submit" class="botao-iniciar" style="width: 100%;">
+                Salvar e Liberar Entrada
+            </button>
         </form>
-
-        <h3>Alunos cadastrados</h3>
-        <div id="listaAlunos"></div>
     `;
 
-    document.getElementById("formAluno").addEventListener("submit", cadastrarAluno);
-    atualizarListaAlunos();
+    if (badgeStatus) badgeStatus.textContent = "Identificação";
+    if (statusLeitor) statusLeitor.textContent = "Aguardando identificação única do aparelho.";
+
+    document.getElementById("formIdentificacaoRapida").addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const nome = document.getElementById("alunoNomeCelular").value.trim();
+        const turma = document.getElementById("alunoTurmaCelular").value.trim();
+        const matricula = document.getElementById("alunoMatriculaCelular").value.trim();
+
+        if (!nome || !turma || !matricula) return;
+
+        const perfilAluno = {
+            id: crypto.randomUUID(),
+            nome,
+            turma,
+            matricula
+        };
+
+        localStorage.setItem("schoolcontrol_aluno_dispositivo", JSON.stringify(perfilAluno));
+        registrarELiberarAluno(perfilAluno);
+    });
 }
 
-function cadastrarAluno(event) {
-    event.preventDefault();
-
-    const nome = document.getElementById("nomeAluno").value.trim();
-    const turma = document.getElementById("turmaAluno").value.trim();
-    const matricula = document.getElementById("matriculaAluno").value.trim();
-
-    if (!nome || !turma || !matricula) {
-        alert("Preencha todos os campos.");
-        return;
-    }
-
-    if (alunos.some(aluno => aluno.matricula === matricula)) {
-        alert("Essa matrícula já está cadastrada.");
-        return;
-    }
-
-    alunos.push({
-        id: crypto.randomUUID(),
-        nome,
-        turma,
-        matricula
+function registrarELiberarAluno(perfilAluno) {
+    const agora = new Date();
+    const hoje = agora.toISOString().split("T")[0];
+    const horario = agora.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
     });
 
-    salvarAlunos();
-    atualizarResumo();
-    mostrarTelaAlunos();
-    alert("Aluno cadastrado com sucesso!");
-}
+    const movimentacoes = JSON.parse(
+        localStorage.getItem("schoolcontrol_movimentacoes")
+    ) || [];
 
-function atualizarListaAlunos() {
-    const lista = document.getElementById("listaAlunos");
-    if (!lista) return;
+    const ultimaHoje = movimentacoes.find(
+        m => m.matricula === perfilAluno.matricula && m.dia === hoje
+    );
+    const tipoMovimentacao = ultimaHoje && ultimaHoje.tipo === "Entrada" ? "Saída" : "Entrada";
 
-    if (alunos.length === 0) {
-        lista.innerHTML = "<p>Nenhum aluno cadastrado ainda.</p>";
-        return;
-    }
-
-    lista.innerHTML = alunos.map(aluno => `
-        <div class="aluno-item">
-            <strong>${escaparHTML(aluno.nome)}</strong>
-            <p>Turma: ${escaparHTML(aluno.turma)}</p>
-            <p>Matrícula: ${escaparHTML(aluno.matricula)}</p>
-        </div>
-    `).join("");
-}
-
-
-// ==========================================
-// 6. TELA DE ENTRADA E SAÍDA MANUAL
-// ==========================================
-
-function mostrarTelaMovimentacao() {
-    const area = document.getElementById("areaConteudo");
-
-    const opcoes = alunos.map(aluno => `
-        <option value="${escaparHTML(aluno.id)}">
-            ${escaparHTML(aluno.nome)} - ${escaparHTML(aluno.turma)}
-        </option>
-    `).join("");
-
-    area.innerHTML = `
-        <div class="cabecalho-movimentacao">
-            <h2>Controle de Entrada e Saída</h2>
-            <p>Selecione um aluno para registrar sua movimentação manualmente.</p>
-        </div>
-
-        <div class="painel-movimentacao">
-            <form id="formMovimentacao" class="form-movimentacao">
-                <div class="campo-aluno">
-                    <label for="alunoMovimentacao">Selecionar aluno</label>
-                    <select id="alunoMovimentacao" required>
-                        <option value="">Escolha um aluno</option>
-                        ${opcoes}
-                    </select>
-                </div>
-
-                <div class="botoes-movimentacao">
-                    <button type="submit" name="tipo" value="Entrada" class="botao-entrada" ${alunos.length === 0 ? "disabled" : ""}>
-                        Registrar Entrada
-                    </button>
-                    <button type="submit" name="tipo" value="Saída" class="botao-saida" ${alunos.length === 0 ? "disabled" : ""}>
-                        Registrar Saída
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div class="area-recentes">
-            <h3>Movimentações Recentes</h3>
-            <div id="movimentacoesRecentes"></div>
-        </div>
-    `;
-
-    document.getElementById("formMovimentacao").addEventListener("submit", registrarMovimentacao);
-    mostrarMovimentacoesRecentes();
-}
-
-function registrarMovimentacao(event) {
-    event.preventDefault();
-    const tipo = event.submitter?.value;
-    const alunoId = document.getElementById("alunoMovimentacao").value;
-    const aluno = alunos.find(item => item.id === alunoId);
-
-    if (!aluno || (tipo !== "Entrada" && tipo !== "Saída")) {
-        alert("Selecione um aluno válido.");
-        return;
-    }
-
-    const agora = new Date();
     movimentacoes.unshift({
         id: crypto.randomUUID(),
-        alunoId: aluno.id,
-        nome: aluno.nome,
-        turma: aluno.turma,
-        tipo,
+        alunoId: perfilAluno.id,
+        matricula: perfilAluno.matricula,
+        nome: perfilAluno.nome,
+        turma: perfilAluno.turma,
+        tipo: tipoMovimentacao,
         dataHora: agora.toISOString(),
-        dia: dataDeHoje()
+        dia: hoje
     });
 
-    salvarMovimentacoes();
-    atualizarResumo();
-    mostrarTelaMovimentacao();
-    alert(`${tipo} registrada com sucesso!`);
-}
+    localStorage.setItem(
+        "schoolcontrol_movimentacoes",
+        JSON.stringify(movimentacoes)
+    );
 
-function mostrarMovimentacoesRecentes() {
-    const lista = document.getElementById("movimentacoesRecentes");
-    if (!lista) return;
+    const corBorda = tipoMovimentacao === "Entrada" ? "#22c55e" : "#3b82f6";
+    const corTitulo = tipoMovimentacao === "Entrada" ? "#86efac" : "#93c5fd";
 
-    const recentes = movimentacoes.slice(0, 10);
-    if (recentes.length === 0) {
-        lista.innerHTML = "<p>Nenhuma movimentação registrada.</p>";
-        return;
-    }
+    painelQrEscola.style.display = "none";
+    resultadoLeitura.style.display = "block";
+    resultadoLeitura.style.borderColor = corBorda;
 
-    lista.innerHTML = recentes.map(item => `
-        <div class="aluno-item">
-            <strong>${escaparHTML(item.nome)}</strong>
-            <p>Turma: ${escaparHTML(item.turma)}</p>
-            <p>Tipo: ${escaparHTML(item.tipo)}</p>
-            <p>Data e horário: ${new Date(item.dataHora).toLocaleString("pt-BR")}</p>
-        </div>
-    `).join("");
-}
-
-
-// ==========================================
-// 7. HISTÓRICO E RELATÓRIOS
-// ==========================================
-
-function mostrarHistorico() {
-    const area = document.getElementById("areaConteudo");
-
-    area.innerHTML = `
-        <div class="cabecalho-historico">
-            <h2>Histórico de Movimentações</h2>
-            <p>Consulte todas as entradas e saídas dos alunos.</p>
-        </div>
-
-        <div class="painel-historico">
-            <div class="topo-historico">
-                <h3>Registros realizados</h3>
-                <span class="total-registros" id="totalHistorico">${movimentacoes.length} registros</span>
-            </div>
-
-            <input type="text" id="pesquisaHistorico" placeholder="Pesquisar aluno pelo nome..." oninput="filtrarHistorico()">
-
-            <select id="filtroTipoHistorico" onchange="filtrarHistorico()">
-                <option value="">Todas as movimentações</option>
-                <option value="Entrada">Somente entradas</option>
-                <option value="Saída">Somente saídas</option>
-            </select>
-
-            <button type="button" onclick="limparHistorico()">Limpar histórico</button>
-
-            <div class="tabela-responsiva">
-                <table class="tabela-historico">
-                    <thead>
-                        <tr>
-                            <th>Aluno</th>
-                            <th>Turma</th>
-                            <th>Movimentação</th>
-                            <th>Data e horário</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corpoHistorico"></tbody>
-                </table>
-            </div>
-        </div>
+    mensagemResultado.innerHTML = `
+        <p style="color: ${corTitulo}; font-weight: bold; font-size: 26px; margin-bottom: 8px;">
+            ✓ ${tipoMovimentacao} liberada
+        </p>
+        <p style="font-size: 18px; font-weight: bold; color: #f8fafc; margin-bottom: 4px;">
+            ${escaparHTML(perfilAluno.nome)}
+        </p>
+        <p style="font-size: 14px; opacity: 0.85; margin-bottom: 14px;">
+            Turma: ${escaparHTML(perfilAluno.turma)} • Horário: ${horario}
+        </p>
+        <button
+            type="button"
+            onclick="trocarAlunoDispositivo()"
+            style="background: transparent; border: 1px solid #475569; color: #94a3b8; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;"
+        >
+            Não é você? Trocar aluno
+        </button>
     `;
 
-    filtrarHistorico();
+    if (badgeStatus) badgeStatus.textContent = `${tipoMovimentacao} liberada`;
+    if (statusLeitor) statusLeitor.textContent = "Registro concluído automaticamente.";
 }
 
-function filtrarHistorico() {
-    const campoPesquisa = document.getElementById("pesquisaHistorico");
-    const campoTipo = document.getElementById("filtroTipoHistorico");
-    const corpo = document.getElementById("corpoHistorico");
-    const total = document.getElementById("totalHistorico");
-
-    if (!campoPesquisa || !campoTipo || !corpo || !total) return;
-
-    const pesquisa = campoPesquisa.value.toLowerCase().trim();
-    const tipo = campoTipo.value;
-
-    const filtradas = movimentacoes.filter(item => {
-        const nomeCombina = item.nome.toLowerCase().includes(pesquisa);
-        const tipoCombina = tipo === "" || item.tipo === tipo;
-        return nomeCombina && tipoCombina;
-    });
-
-    total.textContent = `${filtradas.length} registros`;
-
-    if (filtradas.length === 0) {
-        corpo.innerHTML = `<tr><td colspan="4" class="historico-vazio">Nenhuma movimentação encontrada.</td></tr>`;
-        return;
-    }
-
-    corpo.innerHTML = filtradas.map(item => `
-        <tr>
-            <td>${escaparHTML(item.nome)}</td>
-            <td>${escaparHTML(item.turma)}</td>
-            <td>
-                <span class="status-movimentacao ${item.tipo === "Entrada" ? "status-entrada" : "status-saida"}">
-                    ${escaparHTML(item.tipo)}
-                </span>
-            </td>
-            <td>${new Date(item.dataHora).toLocaleString("pt-BR")}</td>
-        </tr>
-    `).join("");
+function trocarAlunoDispositivo() {
+    localStorage.removeItem("schoolcontrol_aluno_dispositivo");
+    solicitarIdentificacaoAluno();
 }
 
-function limparHistorico() {
-    if (movimentacoes.length === 0) {
-        alert("O histórico já está vazio.");
-        return;
-    }
-    if (!confirm("Tem certeza que deseja apagar todo o histórico?")) return;
+function exibirQrInvalido(motivo) {
+    painelQrEscola.style.display = "none";
+    resultadoLeitura.style.display = "block";
+    resultadoLeitura.style.borderColor = "#ef4444";
 
-    movimentacoes = [];
-    salvarMovimentacoes();
-    filtrarHistorico();
-    atualizarResumo();
-    alert("Histórico apagado com sucesso!");
-}
-
-function mostrarRelatorios() {
-    const area = document.getElementById("areaConteudo");
-    const hoje = dataDeHoje();
-    const registrosHoje = movimentacoes.filter(item => item.dia === hoje);
-    const entradasHoje = registrosHoje.filter(item => item.tipo === "Entrada").length;
-    const saidasHoje = registrosHoje.filter(item => item.tipo === "Saída").length;
-
-    area.innerHTML = `
-        <div class="cabecalho-relatorios">
-            <h2>Relatórios Escolares</h2>
-            <p>Consulte e exporte as movimentações do SchoolControl.</p>
-        </div>
-
-        <div class="painel-relatorios">
-            <div class="cartoes-relatorios">
-                <div class="cartao-relatorio"><h3>Alunos cadastrados</h3><strong>${alunos.length}</strong></div>
-                <div class="cartao-relatorio"><h3>Entradas de hoje</h3><strong>${entradasHoje}</strong></div>
-                <div class="cartao-relatorio"><h3>Saídas de hoje</h3><strong>${saidasHoje}</strong></div>
-                <div class="cartao-relatorio"><h3>Total de movimentações</h3><strong>${movimentacoes.length}</strong></div>
-            </div>
-
-            <div class="filtros-relatorio">
-                <h3>Filtrar por período</h3>
-                <label for="dataInicialRelatorio">Data inicial</label>
-                <input type="date" id="dataInicialRelatorio">
-                <label for="dataFinalRelatorio">Data final</label>
-                <input type="date" id="dataFinalRelatorio">
-
-                <div class="botoes-relatorio">
-                    <button type="button" onclick="aplicarFiltrosRelatorio()">Filtrar</button>
-                    <button type="button" onclick="limparFiltrosRelatorio()">Limpar filtros</button>
-                    <button type="button" onclick="exportarRelatorioCSV()">Exportar relatório CSV</button>
-                </div>
-            </div>
-
-            <div id="resultadoFiltroRelatorio" class="resultado-relatorio">
-                <p>Selecione as datas para consultar as movimentações.</p>
-            </div>
-        </div>
+    mensagemResultado.innerHTML = `
+        <p style="color: #fca5a5; font-weight: bold; font-size: 22px; margin-bottom: 8px;">
+            ✕ QR Code inválido
+        </p>
+        <p style="font-size: 14px; opacity: 0.85;">
+            ${motivo}
+        </p>
     `;
+
+    if (badgeStatus) badgeStatus.textContent = "Acesso negado";
+    if (statusLeitor) statusLeitor.textContent = "Código inválido ou não autorizado.";
 }
-
-function aplicarFiltrosRelatorio() {
-    const inicial = document.getElementById("dataInicialRelatorio").value;
-    const final = document.getElementById("dataFinalRelatorio").value;
-    const resultado = document.getElementById("resultadoFiltroRelatorio");
-
-    if (!inicial || !final || inicial > final) {
-        alert("Verifique as datas informadas.");
-        return;
-    }
-
-    const filtradas = movimentacoes.filter(item => item.dia >= inicial && item.dia <= final);
-    const entradas = filtradas.filter(item => item.tipo === "Entrada").length;
-    const saidas = filtradas.filter(item => item.tipo === "Saída").length;
-
-    resultado.innerHTML = `
-        <h3>Resultado do período</h3>
-        <p>Movimentações encontradas: <strong>${filtradas.length}</strong></p>
-        <p>Entradas: <strong>${entradas}</strong></p>
-        <p>Saídas: <strong>${saidas}</strong></p>
-    `;
-}
-
-function limparFiltrosRelatorio() {
-    document.getElementById("dataInicialRelatorio").value = "";
-    document.getElementById("dataFinalRelatorio").value = "";
-    document.getElementById("resultadoFiltroRelatorio").innerHTML = "<p>Selecione as datas para consultar as movimentações.</p>";
-}
-
-function exportarRelatorioCSV() {
-    const inicial = document.getElementById("dataInicialRelatorio")?.value || "";
-    const final = document.getElementById("dataFinalRelatorio")?.value || "";
-
-    const registros = movimentacoes.filter(item => {
-        if (!inicial && !final) return true;
-        return item.dia >= inicial && item.dia <= final;
-    });
-
-    if (registros.length === 0) {
-        alert("Não existem movimentações para exportar.");
-        return;
-    }
-
-    const escaparCSV = valor => `"${String(valor ?? "").replace(/"/g, '""')}"`;
-    const linhas = [
-        ["Aluno", "Turma", "Movimentação", "Data e horário"],
-        ...registros.map(item => [
-            item.nome,
-            item.turma,
-            item.tipo,
-            new Date(item.dataHora).toLocaleString("pt-BR")
-        ])
-    ];
-
-    const csv = "\uFEFF" + linhas.map(l => l.map(escaparCSV).join(";")).join("\n");
-    const arquivo = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(arquivo);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "relatorio-schoolcontrol.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-}
-
 
 // ==========================================
-// 8. INICIALIZAÇÃO
+// 4. INICIALIZAÇÃO
 // ==========================================
 
-verificarSessaoAdmin();
+function iniciarPaginaQr() {
+    const params = new URLSearchParams(window.location.search);
+    const chaveNaUrl = params.get("chave");
+
+    if (chaveNaUrl !== null) {
+        const chaveLimpa = chaveNaUrl.trim();
+        const chaveOficial = obterChaveOficialAtiva();
+
+        if (chaveLimpa !== chaveOficial) {
+            exibirQrInvalido("Este QR Code não é válido ou foi substituído.");
+            return;
+        }
+
+        const alunoSalvo = JSON.parse(
+            localStorage.getItem("schoolcontrol_aluno_dispositivo") || "null"
+        );
+
+        if (alunoSalvo && alunoSalvo.nome && alunoSalvo.matricula) {
+            registrarELiberarAluno(alunoSalvo);
+        } else {
+            solicitarIdentificacaoAluno();
+        }
+        return;
+    }
+
+    renderizarQrCodeOficial();
+}
+
+iniciarPaginaQr();
