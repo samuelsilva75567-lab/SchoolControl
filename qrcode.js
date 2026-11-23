@@ -1,67 +1,80 @@
 // ==========================================
-// SCHOOLCONTROL - LEITOR DE QR CODE OFICIAL
+// SCHOOLCONTROL - EXIBIÇÃO E VALIDAÇÃO DO QR CODE OFICIAL
 // ==========================================
 
-const botaoIniciar = document.getElementById("iniciarLeitura");
-const statusLeitor = document.getElementById("statusLeitor");
+const painelQrEscola = document.getElementById("painelQrEscola");
+const qrcodeContainer = document.getElementById("qrcodeContainer");
 const resultadoLeitura = document.getElementById("resultadoLeitura");
 const mensagemResultado = document.getElementById("mensagemResultado");
+const statusLeitor = document.getElementById("statusLeitor");
+const badgeStatus = document.getElementById("badgeStatus");
 
-let leitor = null;
-let cameraAtiva = false;
-let bloqueioLeitura = false;
+const CHAVE_PADRAO_ESCOLA = "SCHOOLCONTROL-A30DC0FB-F9E9-467A-886D-542D9B820F67";
 
 // ==========================================
-// 1. VALIDAÇÃO DO QR CODE OFICIAL DA ESCOLA
+// 1. EXTRAIR CHAVE OFICIAL
 // ==========================================
 
-function validarELiberar(codigoLido) {
-    if (bloqueioLeitura) return;
+function extrairChave(texto) {
+    const limpo = String(texto ?? "").trim();
+    if (!limpo) return "";
 
-    bloqueioLeitura = true;
+    try {
+        const url = new URL(limpo);
+        const chaveUrl = url.searchParams.get("chave");
+        if (chaveUrl) return chaveUrl.trim();
+    } catch {
+        // Não é uma URL, retorna texto direto
+    }
 
-    const codigoLimpo = String(codigoLido ?? "").trim();
-    const codigoOficial = (localStorage.getItem("schoolcontrol_qr_oficial") || "").trim();
+    return limpo;
+}
 
-    // Se o administrador ainda não cadastrou o QR Code oficial no painel
-    if (!codigoOficial) {
-        resultadoLeitura.style.display = "block";
-        resultadoLeitura.style.borderColor = "#f59e0b";
+function obterChaveOficialAtiva() {
+    const salvoNoPainel = (localStorage.getItem("schoolcontrol_qr_oficial") || "").trim();
+    const chaveExtraida = extrairChave(salvoNoPainel);
+    return chaveExtraida || CHAVE_PADRAO_ESCOLA;
+}
 
-        mensagemResultado.innerHTML = `
-            <p style="color: #fcd34d; font-weight: bold; font-size: 18px; margin-bottom: 6px;">
-                ⚠ QR Code oficial não configurado
-            </p>
-            <p style="font-size: 14px; opacity: 0.85;">
-                Cadastre o QR Code da escola no painel administrativo primeiro.
+// ==========================================
+// 2. EXIBIR O QR CODE OFICIAL NA TELA
+// ==========================================
+
+function renderizarQrCodeOficial() {
+    const chave = obterChaveOficialAtiva();
+    const urlBase = window.location.origin + window.location.pathname;
+    const linkCompleto = `${urlBase}?chave=${encodeURIComponent(chave)}`;
+
+    if (!window.QRCode) {
+        qrcodeContainer.style.background = "transparent";
+        qrcodeContainer.innerHTML = `
+            <p style="color: #fca5a5; font-weight: bold;">
+                Erro ao carregar o gerador de QR Code. Recarregue a página.
             </p>
         `;
-
-        atualizarStatus("Aguardando configuração do QR Code oficial.");
-        liberarAposAtraso(3000);
         return;
     }
 
-    // Se alguém mostrar um QR Code diferente ou falso
-    if (codigoLimpo !== codigoOficial) {
-        resultadoLeitura.style.display = "block";
-        resultadoLeitura.style.borderColor = "#ef4444";
+    qrcodeContainer.innerHTML = "";
 
-        mensagemResultado.innerHTML = `
-            <p style="color: #fca5a5; font-weight: bold; font-size: 20px; margin-bottom: 6px;">
-                ✕ QR Code inválido
-            </p>
-            <p style="font-size: 14px; opacity: 0.85;">
-                Este código não pertence ao SchoolControl. Acesso negado.
-            </p>
-        `;
+    new QRCode(qrcodeContainer, {
+        text: linkCompleto,
+        width: 240,
+        height: 240,
+        colorDark: "#080d18",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
 
-        atualizarStatus("Código recusado. Aponte o QR Code oficial da escola.");
-        liberarAposAtraso(3000);
-        return;
-    }
+    if (badgeStatus) badgeStatus.textContent = "QR Code ativo";
+    if (statusLeitor) statusLeitor.textContent = "QR Code oficial pronto para leitura pelos alunos.";
+}
 
-    // Se o QR Code for exatamente o oficial cadastrado
+// ==========================================
+// 3. VALIDAR QUANDO O ALUNO ESCANEIA COM O CELULAR
+// ==========================================
+
+function exibirEntradaLiberada() {
     const agora = new Date();
     const horario = agora.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -88,75 +101,62 @@ function validarELiberar(codigoLido) {
         JSON.stringify(movimentacoes)
     );
 
+    painelQrEscola.style.display = "none";
     resultadoLeitura.style.display = "block";
     resultadoLeitura.style.borderColor = "#22c55e";
 
     mensagemResultado.innerHTML = `
-        <p style="color: #86efac; font-weight: bold; font-size: 22px; margin-bottom: 6px;">
+        <p style="color: #86efac; font-weight: bold; font-size: 26px; margin-bottom: 8px;">
             ✓ Entrada liberada
         </p>
-        <p style="font-size: 14px; opacity: 0.85;">
+        <p style="font-size: 15px; opacity: 0.9;">
             Horário: ${horario}
         </p>
     `;
 
-    atualizarStatus("Acesso liberado! Pronto para a próxima leitura.");
-    liberarAposAtraso(3000);
+    if (badgeStatus) badgeStatus.textContent = "Acesso liberado";
+    if (statusLeitor) statusLeitor.textContent = "Registro concluído com sucesso.";
 }
 
-function liberarAposAtraso(ms) {
-    setTimeout(() => {
-        bloqueioLeitura = false;
-    }, ms);
+function exibirQrInvalido(motivo) {
+    painelQrEscola.style.display = "none";
+    resultadoLeitura.style.display = "block";
+    resultadoLeitura.style.borderColor = "#ef4444";
+
+    mensagemResultado.innerHTML = `
+        <p style="color: #fca5a5; font-weight: bold; font-size: 22px; margin-bottom: 8px;">
+            ✕ QR Code inválido
+        </p>
+        <p style="font-size: 14px; opacity: 0.85;">
+            ${motivo}
+        </p>
+    `;
+
+    if (badgeStatus) badgeStatus.textContent = "Acesso negado";
+    if (statusLeitor) statusLeitor.textContent = "Código inválido ou não autorizado.";
 }
 
 // ==========================================
-// 2. CONTROLE DA CÂMERA
+// 4. INICIALIZAÇÃO
 // ==========================================
 
-function atualizarStatus(mensagem) {
-    statusLeitor.textContent = mensagem;
-}
+function iniciarPaginaQr() {
+    const params = new URLSearchParams(window.location.search);
+    const chaveNaUrl = params.get("chave");
 
-async function iniciarCamera() {
-    if (cameraAtiva) return;
+    if (chaveNaUrl !== null) {
+        const chaveLimpa = chaveNaUrl.trim();
+        const chaveOficial = obterChaveOficialAtiva();
 
-    if (!window.Html5Qrcode) {
-        atualizarStatus("Erro ao carregar a biblioteca da câmera.");
+        if (chaveLimpa === chaveOficial) {
+            exibirEntradaLiberada();
+        } else {
+            exibirQrInvalido("Este QR Code não é válido ou foi substituído.");
+        }
         return;
     }
 
-    botaoIniciar.disabled = true;
-    atualizarStatus("Abrindo câmera...");
-
-    try {
-        leitor = new Html5Qrcode("reader");
-
-        await leitor.start(
-            { facingMode: "environment" },
-            {
-                fps: 10,
-                qrbox: { width: 230, height: 230 }
-            },
-            codigoLido => {
-                validarELiberar(codigoLido);
-            },
-            () => {
-                // Ignora quadros sem QR Code
-            }
-        );
-
-        cameraAtiva = true;
-        botaoIniciar.textContent = "Câmera ativa";
-        atualizarStatus("Câmera ativa. Aponte o QR Code oficial.");
-
-    } catch (erro) {
-        atualizarStatus("Não foi possível acessar a câmera.");
-        botaoIniciar.disabled = false;
-        console.error("Erro ao iniciar câmera:", erro);
-    }
+    renderizarQrCodeOficial();
 }
 
-botaoIniciar.addEventListener("click", iniciarCamera);
-
-resultadoLeitura.style.display = "none";
+iniciarPaginaQr();
