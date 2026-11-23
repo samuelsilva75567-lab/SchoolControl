@@ -1,10 +1,11 @@
 // ==========================================
-// SCHOOLCONTROL - SISTEMA PRINCIPAL + LOGIN
+// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL (SUPABASE)
 // ==========================================
 
-// Credenciais padrão iniciais
-const EMAIL_PADRAO = "samuel.silva75567@aluno.seduc.pa.gov.br";
-const SENHA_PADRAO = "ScH@94mK#2026pL";
+const EMAIL_PADRAO = "admin@escola.com";
+const SENHA_PADRAO = "admin123";
+
+let telaAtualAdmin = "inicio";
 
 function obterCredenciaisAdmin() {
     const salvo = JSON.parse(localStorage.getItem("schoolcontrol_admin_credenciais") || "null");
@@ -12,6 +13,23 @@ function obterCredenciaisAdmin() {
         return salvo;
     }
     return { email: EMAIL_PADRAO, senha: SENHA_PADRAO };
+}
+
+function atualizarIndicadorNuvem() {
+    const badge = document.getElementById("badgeStatusNuvem");
+    if (!badge) return;
+
+    if (window.supabaseAtivo && window.supabaseClient) {
+        badge.textContent = "● Sincronizado com Supabase em tempo real";
+        badge.style.background = "rgba(16, 185, 129, 0.15)";
+        badge.style.color = "#6ee7b7";
+        badge.style.borderColor = "#10b981";
+    } else {
+        badge.textContent = "⚠ Modo local (configure supabase-config.js para nuvem)";
+        badge.style.background = "rgba(245, 158, 11, 0.15)";
+        badge.style.color = "#fcd34d";
+        badge.style.borderColor = "#f59e0b";
+    }
 }
 
 function verificarSessaoAdmin() {
@@ -24,8 +42,10 @@ function verificarSessaoAdmin() {
     if (logado) {
         telaLogin.style.display = "none";
         painel.style.display = "block";
+        atualizarIndicadorNuvem();
         atualizarResumo();
         mostrarTelaInicio();
+        iniciarSincronizacaoSupabase();
     } else {
         telaLogin.style.display = "flex";
         painel.style.display = "none";
@@ -147,25 +167,99 @@ document.getElementById("formDefinirNovaSenha")?.addEventListener("submit", func
 
 
 // ==========================================
-// 1. DADOS DOS ALUNOS E MOVIMENTAÇÕES
+// 1. DADOS DOS ALUNOS, CPF E MOVIMENTAÇÕES + TEMPO REAL
 // ==========================================
 
 let alunos = [];
 let movimentacoes = [];
+let realtimeSupabaseIniciado = false;
 
 try {
     alunos = JSON.parse(localStorage.getItem("schoolcontrol_alunos")) || [];
     movimentacoes = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes")) || [];
-} catch (erro) {
+} catch {
     alunos = [];
     movimentacoes = [];
 }
 
-function salvarAlunos() {
+async function carregarDadosSupabase() {
+    if (!window.supabaseAtivo || !window.supabaseClient) return;
+
+    try {
+        const [resAlunos, resMovs, resConfig] = await Promise.all([
+            window.supabaseClient.from("sc_alunos").select("*"),
+            window.supabaseClient.from("sc_movimentacoes").select("*").order("data_hora", { ascending: false }),
+            window.supabaseClient.from("sc_config").select("*").eq("chave", "qr_oficial").maybeSingle()
+        ]);
+
+        if (Array.isArray(resAlunos.data)) {
+            alunos = resAlunos.data.map(a => ({
+                id: a.id,
+                nome: a.nome,
+                turma: a.turma,
+                cpf: a.cpf,
+                cpfLimpo: a.cpf_limpo
+            }));
+            salvarAlunosLocal();
+        }
+
+        if (Array.isArray(resMovs.data)) {
+            movimentacoes = resMovs.data.map(m => ({
+                id: m.id,
+                alunoId: m.aluno_id,
+                cpf: m.cpf,
+                cpfLimpo: m.cpf_limpo,
+                nome: m.nome,
+                turma: m.turma,
+                tipo: m.tipo,
+                dataHora: m.data_hora,
+                dia: m.dia
+            }));
+            salvarMovimentacoesLocal();
+        }
+
+        if (resConfig.data && resConfig.data.valor) {
+            localStorage.setItem("schoolcontrol_qr_oficial", resConfig.data.valor);
+            const inputQr = document.getElementById("inputQrOficial");
+            if (inputQr && !inputQr.value) inputQr.value = resConfig.data.valor;
+        }
+
+        atualizarResumo();
+        if (telaAtualAdmin === "alunos") atualizarListaAlunos();
+        if (telaAtualAdmin === "entrada") mostrarTelaMovimentacao();
+        if (telaAtualAdmin === "historico") filtrarHistorico();
+        if (telaAtualAdmin === "relatorios") mostrarRelatorios();
+    } catch (erro) {
+        console.error("Erro ao carregar dados do Supabase:", erro);
+    }
+}
+
+function iniciarSincronizacaoSupabase() {
+    if (!window.supabaseAtivo || !window.supabaseClient || realtimeSupabaseIniciado) return;
+    realtimeSupabaseIniciado = true;
+
+    carregarDadosSupabase();
+
+    // Escuta alterações em tempo real vindas dos celulares dos alunos
+    window.supabaseClient
+        .channel("schoolcontrol-realtime")
+        .on("postgres_changes", { event: "*", schema: "public", table: "sc_alunos" }, () => {
+            carregarDadosSupabase();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "sc_movimentacoes" }, () => {
+            carregarDadosSupabase();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "sc_config" }, () => {
+            carregarDadosSupabase();
+        })
+        .subscribe();
+}
+
+function salvarAlunosLocal() {
     localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunos));
 }
 
-function salvarMovimentacoes() {
+function salvarMovimentacoesLocal() {
     localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(movimentacoes));
 }
 
@@ -177,6 +271,39 @@ function escaparHTML(texto) {
         '"': "&quot;",
         "'": "&#39;"
     })[letra]);
+}
+
+function limparCPF(valor) {
+    return String(valor ?? "").replace(/\D/g, "").slice(0, 11);
+}
+
+function formatarCPF(valor) {
+    const digitos = limparCPF(valor);
+    return digitos
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function validarCPF(cpf) {
+    const limpo = limparCPF(cpf);
+    if (limpo.length !== 11 || /^(\d)\1{10}$/.test(limpo)) return false;
+
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+        soma += parseInt(limpo.charAt(i), 10) * (10 - i);
+    }
+    let resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(limpo.charAt(9), 10)) return false;
+
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+        soma += parseInt(limpo.charAt(i), 10) * (11 - i);
+    }
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    return resto === parseInt(limpo.charAt(10), 10);
 }
 
 function dataDeHoje() {
@@ -211,6 +338,7 @@ function atualizarResumo() {
 // ==========================================
 
 function abrirTela(tela) {
+    telaAtualAdmin = tela;
     const area = document.getElementById("areaConteudo");
     if (!area) return;
 
@@ -227,6 +355,7 @@ function abrirTela(tela) {
 // ==========================================
 
 function mostrarTelaInicio() {
+    telaAtualAdmin = "inicio";
     const area = document.getElementById("areaConteudo");
     if (!area) return;
 
@@ -270,14 +399,26 @@ function mostrarTelaInicio() {
         </div>
     `;
 
-    document.getElementById("formQrOficial").addEventListener("submit", function (event) {
+    document.getElementById("formQrOficial").addEventListener("submit", async function (event) {
         event.preventDefault();
         const valor = document.getElementById("inputQrOficial").value.trim();
         if (!valor) return;
 
         localStorage.setItem("schoolcontrol_qr_oficial", valor);
+
+        if (window.supabaseAtivo && window.supabaseClient) {
+            try {
+                await window.supabaseClient.from("sc_config").upsert({
+                    chave: "qr_oficial",
+                    valor
+                });
+            } catch (erro) {
+                console.error("Erro ao salvar QR Code no Supabase:", erro);
+            }
+        }
+
         document.getElementById("statusQrOficial").textContent =
-            "✓ QR Code oficial salvo com sucesso!";
+            "✓ QR Code oficial salvo e sincronizado!";
         alert("QR Code oficial atualizado!");
     });
 }
@@ -293,15 +434,16 @@ function gerarCodigoAleatorioQR() {
 
 
 // ==========================================
-// 5. TELA DE ALUNOS
+// 5. TELA DE ALUNOS (COM CPF)
 // ==========================================
 
 function mostrarTelaAlunos() {
+    telaAtualAdmin = "alunos";
     const area = document.getElementById("areaConteudo");
 
     area.innerHTML = `
         <h2>Gestão de Alunos</h2>
-        <p>Cadastre e consulte os alunos.</p>
+        <p>Cadastre e consulte os alunos pelo CPF.</p>
 
         <form id="formAluno">
             <label>Nome do aluno</label>
@@ -310,8 +452,8 @@ function mostrarTelaAlunos() {
             <label>Turma</label>
             <input type="text" id="turmaAluno" placeholder="Ex: 8º ano A" required>
 
-            <label>Matrícula</label>
-            <input type="text" id="matriculaAluno" placeholder="Digite uma matrícula" required>
+            <label>CPF</label>
+            <input type="text" id="cpfAluno" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required>
 
             <button type="submit">Cadastrar aluno</button>
         </form>
@@ -320,36 +462,65 @@ function mostrarTelaAlunos() {
         <div id="listaAlunos"></div>
     `;
 
+    const inputCpf = document.getElementById("cpfAluno");
+    inputCpf.addEventListener("input", function () {
+        inputCpf.value = formatarCPF(inputCpf.value);
+    });
+
     document.getElementById("formAluno").addEventListener("submit", cadastrarAluno);
     atualizarListaAlunos();
 }
 
-function cadastrarAluno(event) {
+async function cadastrarAluno(event) {
     event.preventDefault();
 
     const nome = document.getElementById("nomeAluno").value.trim();
     const turma = document.getElementById("turmaAluno").value.trim();
-    const matricula = document.getElementById("matriculaAluno").value.trim();
+    const cpfLimpo = limparCPF(document.getElementById("cpfAluno").value);
+    const cpfFormatado = formatarCPF(cpfLimpo);
 
-    if (!nome || !turma || !matricula) {
+    if (!nome || !turma || !cpfLimpo) {
         alert("Preencha todos os campos.");
         return;
     }
 
-    if (alunos.some(aluno => aluno.matricula === matricula)) {
-        alert("Essa matrícula já está cadastrada.");
+    if (!validarCPF(cpfLimpo)) {
+        alert("CPF inválido. Verifique os 11 números digitados.");
         return;
     }
 
-    alunos.push({
+    if (alunos.some(aluno => limparCPF(aluno.cpf || aluno.cpfLimpo || aluno.matricula) === cpfLimpo)) {
+        alert("Esse CPF já está cadastrado.");
+        return;
+    }
+
+    const novoAluno = {
         id: crypto.randomUUID(),
         nome,
         turma,
-        matricula
-    });
+        cpf: cpfFormatado,
+        cpfLimpo
+    };
 
-    salvarAlunos();
-    atualizarResumo();
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_alunos").insert({
+                cpf_limpo: cpfLimpo,
+                id: novoAluno.id,
+                nome: novoAluno.nome,
+                turma: novoAluno.turma,
+                cpf: novoAluno.cpf
+            });
+            await carregarDadosSupabase();
+        } catch (erro) {
+            console.error("Erro ao cadastrar aluno no Supabase:", erro);
+        }
+    } else {
+        alunos.push(novoAluno);
+        salvarAlunosLocal();
+        atualizarResumo();
+    }
+
     mostrarTelaAlunos();
     alert("Aluno cadastrado com sucesso!");
 }
@@ -367,7 +538,7 @@ function atualizarListaAlunos() {
         <div class="aluno-item">
             <strong>${escaparHTML(aluno.nome)}</strong>
             <p>Turma: ${escaparHTML(aluno.turma)}</p>
-            <p>Matrícula: ${escaparHTML(aluno.matricula)}</p>
+            <p>CPF: ${escaparHTML(aluno.cpf || aluno.matricula || "Não informado")}</p>
         </div>
     `).join("");
 }
@@ -378,6 +549,7 @@ function atualizarListaAlunos() {
 // ==========================================
 
 function mostrarTelaMovimentacao() {
+    telaAtualAdmin = "entrada";
     const area = document.getElementById("areaConteudo");
 
     const opcoes = alunos.map(aluno => `
@@ -423,7 +595,7 @@ function mostrarTelaMovimentacao() {
     mostrarMovimentacoesRecentes();
 }
 
-function registrarMovimentacao(event) {
+async function registrarMovimentacao(event) {
     event.preventDefault();
     const tipo = event.submitter?.value;
     const alunoId = document.getElementById("alunoMovimentacao").value;
@@ -435,19 +607,46 @@ function registrarMovimentacao(event) {
     }
 
     const agora = new Date();
-    movimentacoes.unshift({
-        id: crypto.randomUUID(),
+    const hoje = dataDeHoje();
+    const cpfLimpo = limparCPF(aluno.cpf || aluno.cpfLimpo);
+    const chaveId = cpfLimpo ? `${hoje}_${cpfLimpo}_${tipo}` : crypto.randomUUID();
+
+    const novoRegistro = {
+        id: chaveId,
         alunoId: aluno.id,
+        cpf: aluno.cpf || "",
+        cpfLimpo,
         nome: aluno.nome,
         turma: aluno.turma,
         tipo,
         dataHora: agora.toISOString(),
-        dia: dataDeHoje()
-    });
+        dia: hoje
+    };
 
-    salvarMovimentacoes();
-    atualizarResumo();
-    mostrarTelaMovimentacao();
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_movimentacoes").upsert({
+                id: novoRegistro.id,
+                aluno_id: novoRegistro.alunoId,
+                cpf: novoRegistro.cpf,
+                cpf_limpo: novoRegistro.cpfLimpo,
+                nome: novoRegistro.nome,
+                turma: novoRegistro.turma,
+                tipo: novoRegistro.tipo,
+                data_hora: novoRegistro.dataHora,
+                dia: novoRegistro.dia
+            });
+            await carregarDadosSupabase();
+        } catch (erro) {
+            console.error("Erro ao registrar movimentação no Supabase:", erro);
+        }
+    } else {
+        movimentacoes.unshift(novoRegistro);
+        salvarMovimentacoesLocal();
+        atualizarResumo();
+        mostrarTelaMovimentacao();
+    }
+
     alert(`${tipo} registrada com sucesso!`);
 }
 
@@ -477,12 +676,13 @@ function mostrarMovimentacoesRecentes() {
 // ==========================================
 
 function mostrarHistorico() {
+    telaAtualAdmin = "historico";
     const area = document.getElementById("areaConteudo");
 
     area.innerHTML = `
         <div class="cabecalho-historico">
             <h2>Histórico de Movimentações</h2>
-            <p>Consulte todas as entradas e saídas dos alunos.</p>
+            <p>Consulte todas as entradas e saídas dos alunos em tempo real.</p>
         </div>
 
         <div class="painel-historico">
@@ -558,21 +758,30 @@ function filtrarHistorico() {
     `).join("");
 }
 
-function limparHistorico() {
+async function limparHistorico() {
     if (movimentacoes.length === 0) {
         alert("O histórico já está vazio.");
         return;
     }
-    if (!confirm("Tem certeza que deseja apagar todo o histórico?")) return;
+    if (!confirm("Tem certeza que deseja apagar todo o histórico na nuvem e localmente?")) return;
+
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_movimentacoes").delete().not("id", "is", null);
+        } catch (erro) {
+            console.error("Erro ao limpar histórico no Supabase:", erro);
+        }
+    }
 
     movimentacoes = [];
-    salvarMovimentacoes();
+    salvarMovimentacoesLocal();
     filtrarHistorico();
     atualizarResumo();
     alert("Histórico apagado com sucesso!");
 }
 
 function mostrarRelatorios() {
+    telaAtualAdmin = "relatorios";
     const area = document.getElementById("areaConteudo");
     const hoje = dataDeHoje();
     const registrosHoje = movimentacoes.filter(item => item.dia === hoje);
@@ -658,9 +867,10 @@ function exportarRelatorioCSV() {
 
     const escaparCSV = valor => `"${String(valor ?? "").replace(/"/g, '""')}"`;
     const linhas = [
-        ["Aluno", "Turma", "Movimentação", "Data e horário"],
+        ["Aluno", "CPF", "Turma", "Movimentação", "Data e horário"],
         ...registros.map(item => [
             item.nome,
+            item.cpf || "",
             item.turma,
             item.tipo,
             new Date(item.dataHora).toLocaleString("pt-BR")

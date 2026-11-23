@@ -1,5 +1,5 @@
 // ==========================================
-// SCHOOLCONTROL - QR CODE OFICIAL + IDENTIFICAÇÃO EM 1 SEGUNDO (CPF)
+// SCHOOLCONTROL - QR CODE OFICIAL + SUPABASE + IDENTIFICAÇÃO 1 SEGUNDO
 // ==========================================
 
 const painelQrEscola = document.getElementById("painelQrEscola");
@@ -31,10 +31,27 @@ function extrairChave(texto) {
     return limpo;
 }
 
-function obterChaveOficialAtiva() {
-    const salvoNoPainel = (localStorage.getItem("schoolcontrol_qr_oficial") || "").trim();
-    const chaveExtraida = extrairChave(salvoNoPainel);
-    return chaveExtraida || CHAVE_PADRAO_ESCOLA;
+async function obterChaveOficialAtiva() {
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            const { data } = await window.supabaseClient
+                .from("sc_config")
+                .select("valor")
+                .eq("chave", "qr_oficial")
+                .maybeSingle();
+
+            if (data && data.valor) {
+                localStorage.setItem("schoolcontrol_qr_oficial", data.valor);
+                const extraida = extrairChave(data.valor);
+                if (extraida) return extraida;
+            }
+        } catch (erro) {
+            console.warn("Falha ao buscar chave oficial no Supabase:", erro);
+        }
+    }
+
+    const salvoLocal = (localStorage.getItem("schoolcontrol_qr_oficial") || "").trim();
+    return extrairChave(salvoLocal) || CHAVE_PADRAO_ESCOLA;
 }
 
 function escaparHTML(texto) {
@@ -88,6 +105,13 @@ function dataDeHojeLocal() {
     return `${ano}-${mes}-${dia}`;
 }
 
+function formatarHoraCurta(dataIso) {
+    return new Date(dataIso).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+
 function emitirFeedbackSensorial() {
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
         navigator.vibrate([100, 50, 120]);
@@ -107,7 +131,7 @@ function emitirFeedbackSensorial() {
         osc.start();
         osc.stop(ctx.currentTime + 0.14);
     } catch {
-        // Ignora caso o navegador bloqueie áudio automático
+        // Ignora bloqueio de áudio
     }
 }
 
@@ -115,8 +139,8 @@ function emitirFeedbackSensorial() {
 // 2. EXIBIR O QR CODE OFICIAL NA TELA (TOTEM)
 // ==========================================
 
-function renderizarQrCodeOficial() {
-    const chave = obterChaveOficialAtiva();
+async function renderizarQrCodeOficial() {
+    const chave = await obterChaveOficialAtiva();
     const urlBase = window.location.origin + window.location.pathname;
     const linkCompleto = `${urlBase}?chave=${encodeURIComponent(chave)}`;
 
@@ -155,7 +179,7 @@ function renderizarQrCodeOficial() {
 }
 
 // ==========================================
-// 3. CADASTRO ÚNICO NO CELULAR (APENAS 1ª VEZ)
+// 3. CADASTRO ÚNICO NO CELULAR (1ª VEZ)
 // ==========================================
 
 function solicitarIdentificacaoUnica() {
@@ -214,7 +238,7 @@ function solicitarIdentificacaoUnica() {
                 style="width: 100%; padding: 11px; border-radius: 8px; border: 1px solid #334155; background: #080d18; color: #fff; margin-bottom: 16px; font-size: 14px;"
             >
 
-            <button type="submit" class="botao-iniciar" style="width: 100%;">
+            <button type="submit" id="btnSalvarIdentificacao" class="botao-iniciar" style="width: 100%;">
                 Salvar no Celular e Liberar
             </button>
         </form>
@@ -226,15 +250,33 @@ function solicitarIdentificacaoUnica() {
     const inputCpf = document.getElementById("alunoCpfCelular");
     const erroBox = document.getElementById("erroCpfCelular");
 
-    // Formata o CPF enquanto digita e preenche nome/turma automaticamente se já estiver cadastrado no painel
-    inputCpf.addEventListener("input", function () {
+    // Consulta o CPF no Supabase assim que os 11 dígitos são digitados
+    inputCpf.addEventListener("input", async function () {
         inputCpf.value = formatarCPF(inputCpf.value);
         erroBox.style.display = "none";
 
         const cpfLimpo = limparCPF(inputCpf.value);
         if (cpfLimpo.length === 11) {
-            const alunosCadastrados = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
-            const encontrado = alunosCadastrados.find(a => limparCPF(a.cpf || a.matricula) === cpfLimpo);
+            if (window.supabaseAtivo && window.supabaseClient) {
+                try {
+                    const { data: alunoNuvem } = await window.supabaseClient
+                        .from("sc_alunos")
+                        .select("*")
+                        .eq("cpf_limpo", cpfLimpo)
+                        .maybeSingle();
+
+                    if (alunoNuvem) {
+                        document.getElementById("alunoNomeCelular").value = alunoNuvem.nome || "";
+                        document.getElementById("alunoTurmaCelular").value = alunoNuvem.turma || "";
+                        return;
+                    }
+                } catch {
+                    // Continua para verificação local
+                }
+            }
+
+            const alunosLocais = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
+            const encontrado = alunosLocais.find(a => limparCPF(a.cpf || a.cpf_limpo || a.matricula) === cpfLimpo);
             if (encontrado) {
                 document.getElementById("alunoNomeCelular").value = encontrado.nome;
                 document.getElementById("alunoTurmaCelular").value = encontrado.turma;
@@ -242,13 +284,14 @@ function solicitarIdentificacaoUnica() {
         }
     });
 
-    document.getElementById("formIdentificacaoRapida").addEventListener("submit", function (event) {
+    document.getElementById("formIdentificacaoRapida").addEventListener("submit", async function (event) {
         event.preventDefault();
 
         const cpfLimpo = limparCPF(inputCpf.value);
         const cpfFormatado = formatarCPF(cpfLimpo);
         const nome = document.getElementById("alunoNomeCelular").value.trim();
         const turma = document.getElementById("alunoTurmaCelular").value.trim();
+        const btnSalvar = document.getElementById("btnSalvarIdentificacao");
 
         if (!validarCPF(cpfLimpo)) {
             erroBox.textContent = "CPF inválido. Verifique os 11 números digitados.";
@@ -259,39 +302,130 @@ function solicitarIdentificacaoUnica() {
 
         if (!nome || !turma) return;
 
-        // Sincroniza também na lista geral de alunos caso ainda não esteja lá
-        const alunosCadastrados = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
-        let alunoExistente = alunosCadastrados.find(a => limparCPF(a.cpf || a.matricula) === cpfLimpo);
+        btnSalvar.disabled = true;
+        btnSalvar.textContent = "Sincronizando...";
 
-        if (!alunoExistente) {
-            alunoExistente = {
-                id: crypto.randomUUID(),
-                nome,
-                turma,
-                cpf: cpfFormatado
-            };
-            alunosCadastrados.push(alunoExistente);
-            localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunosCadastrados));
+        let alunoFinal = {
+            id: crypto.randomUUID(),
+            nome,
+            turma,
+            cpf: cpfFormatado,
+            cpfLimpo
+        };
+
+        // Salva ou recupera o aluno no Supabase
+        if (window.supabaseAtivo && window.supabaseClient) {
+            try {
+                const { data: existente } = await window.supabaseClient
+                    .from("sc_alunos")
+                    .select("*")
+                    .eq("cpf_limpo", cpfLimpo)
+                    .maybeSingle();
+
+                if (existente) {
+                    alunoFinal = {
+                        id: existente.id,
+                        nome: existente.nome,
+                        turma: existente.turma,
+                        cpf: existente.cpf,
+                        cpfLimpo: existente.cpf_limpo
+                    };
+                } else {
+                    await window.supabaseClient.from("sc_alunos").insert({
+                        cpf_limpo: cpfLimpo,
+                        id: alunoFinal.id,
+                        nome: alunoFinal.nome,
+                        turma: alunoFinal.turma,
+                        cpf: alunoFinal.cpf
+                    });
+                }
+            } catch (erro) {
+                console.error("Erro ao salvar aluno no Supabase:", erro);
+            }
+        }
+
+        // Mantém cópia local de segurança
+        const alunosLocais = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
+        if (!alunosLocais.some(a => limparCPF(a.cpf || a.cpf_limpo || a.matricula) === cpfLimpo)) {
+            alunosLocais.push(alunoFinal);
+            localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunosLocais));
         }
 
         const perfilDispositivo = {
-            id: alunoExistente.id,
-            nome: alunoExistente.nome,
-            turma: alunoExistente.turma,
-            cpf: formatarCPF(alunoExistente.cpf || cpfLimpo),
+            id: alunoFinal.id,
+            nome: alunoFinal.nome,
+            turma: alunoFinal.turma,
+            cpf: formatarCPF(alunoFinal.cpf || cpfLimpo),
             cpfLimpo
         };
 
         localStorage.setItem("schoolcontrol_aluno_dispositivo", JSON.stringify(perfilDispositivo));
-        liberarAcessoEmUmSegundo(perfilDispositivo);
+        await liberarAcessoEmUmSegundo(perfilDispositivo);
     });
 }
 
 // ==========================================
-// 4. LIBERAÇÃO INSTANTÂNEA EM 1 SEGUNDO (SEM DIGITAR)
+// 4. REGRA: MÁXIMO 1 ENTRADA E 1 SAÍDA POR DIA (SINCRONIZADO)
 // ==========================================
 
-function liberarAcessoEmUmSegundo(perfilAluno) {
+async function buscarRegistrosHojeAluno(cpfLimpo, hoje) {
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            const { data } = await window.supabaseClient
+                .from("sc_movimentacoes")
+                .select("*")
+                .eq("dia", hoje)
+                .eq("cpf_limpo", cpfLimpo);
+
+            if (Array.isArray(data)) {
+                return data.map(item => ({
+                    ...item,
+                    alunoId: item.aluno_id || item.alunoId,
+                    cpfLimpo: item.cpf_limpo || item.cpfLimpo,
+                    dataHora: item.data_hora || item.dataHora
+                }));
+            }
+        } catch (erro) {
+            console.warn("Falha ao consultar movimentações no Supabase, usando local:", erro);
+        }
+    }
+
+    const locais = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes") || "[]");
+    return locais.filter(
+        m => limparCPF(m.cpfLimpo || m.cpf_limpo || m.cpf || m.matricula) === cpfLimpo && m.dia === hoje
+    );
+}
+
+async function gravarMovimentacaoNuvemELocal(registro) {
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_movimentacoes").upsert({
+                id: registro.id,
+                aluno_id: registro.alunoId,
+                cpf: registro.cpf,
+                cpf_limpo: registro.cpfLimpo,
+                nome: registro.nome,
+                turma: registro.turma,
+                tipo: registro.tipo,
+                data_hora: registro.dataHora,
+                dia: registro.dia
+            });
+        } catch (erro) {
+            console.error("Erro ao gravar movimentação no Supabase:", erro);
+        }
+    }
+
+    const locais = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes") || "[]");
+    locais.unshift(registro);
+    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(locais));
+}
+
+async function liberarAcessoEmUmSegundo(perfilAluno) {
+    painelQrEscola.style.display = "none";
+    resultadoLeitura.style.display = "block";
+    resultadoLeitura.style.borderColor = "#3b82f6";
+    mensagemResultado.innerHTML = `<p style="color: #93c5fd; font-weight: bold;">⚡ Validando acesso...</p>`;
+
     const agora = new Date();
     const hoje = dataDeHojeLocal();
     const horario = agora.toLocaleTimeString("pt-BR", {
@@ -302,80 +436,115 @@ function liberarAcessoEmUmSegundo(perfilAluno) {
 
     const cpfLimpoAtual = limparCPF(perfilAluno.cpfLimpo || perfilAluno.cpf);
     const cpfFormatadoAtual = formatarCPF(cpfLimpoAtual);
+    const alunoFormatado = { ...perfilAluno, cpf: cpfFormatadoAtual };
 
-    const movimentacoes = JSON.parse(
-        localStorage.getItem("schoolcontrol_movimentacoes") || "[]"
-    );
+    const registrosHojeAluno = await buscarRegistrosHojeAluno(cpfLimpoAtual, hoje);
 
-    const ultimaHoje = movimentacoes.find(
-        m => limparCPF(m.cpfLimpo || m.cpf || m.matricula) === cpfLimpoAtual && m.dia === hoje
-    );
+    const entradaHoje = registrosHojeAluno.find(m => m.tipo === "Entrada");
+    const saidaHoje = registrosHojeAluno.find(m => m.tipo === "Saída");
 
-    // Ignora leitura repetida em menos de 2 minutos para não inverter Entrada/Saída sem querer
-    if (ultimaHoje) {
-        const diferencaMs = agora.getTime() - new Date(ultimaHoje.dataHora).getTime();
+    // CASO 1: Já registrou 1 Entrada e 1 Saída hoje
+    if (entradaHoje && saidaHoje) {
+        renderizarCartaoLiberado({
+            perfilAluno: alunoFormatado,
+            estado: "dia_concluido",
+            subtexto: `Limite diário atingido: Entrada às ${formatarHoraCurta(entradaHoje.dataHora)} e Saída às ${formatarHoraCurta(saidaHoje.dataHora)}.`
+        });
+        return;
+    }
+
+    // CASO 2: Já registrou Entrada hoje, mas ainda não registrou Saída
+    if (entradaHoje && !saidaHoje) {
+        const diferencaMs = agora.getTime() - new Date(entradaHoje.dataHora).getTime();
+
         if (diferencaMs >= 0 && diferencaMs < TEMPO_MINIMO_ENTRE_REGISTROS_MS) {
-            const horarioAnterior = new Date(ultimaHoje.dataHora).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-
             renderizarCartaoLiberado({
-                perfilAluno: { ...perfilAluno, cpf: cpfFormatadoAtual },
-                tipoMovimentacao: ultimaHoje.tipo,
-                horario: horarioAnterior,
-                jaRegistradoRecentemente: true
+                perfilAluno: alunoFormatado,
+                estado: "entrada_recente",
+                subtexto: `Entrada já registrada hoje às ${formatarHoraCurta(entradaHoje.dataHora)}. Aguarde o horário de saída.`
             });
             return;
         }
+
+        const registroSaida = {
+            id: `${hoje}_${cpfLimpoAtual}_Saída`,
+            alunoId: perfilAluno.id,
+            cpf: cpfFormatadoAtual,
+            cpfLimpo: cpfLimpoAtual,
+            nome: perfilAluno.nome,
+            turma: perfilAluno.turma,
+            tipo: "Saída",
+            dataHora: agora.toISOString(),
+            dia: hoje
+        };
+
+        await gravarMovimentacaoNuvemELocal(registroSaida);
+        emitirFeedbackSensorial();
+
+        renderizarCartaoLiberado({
+            perfilAluno: alunoFormatado,
+            estado: "saida_liberada",
+            subtexto: `Saída única do dia registrada às ${horario} (Entrada foi às ${formatarHoraCurta(entradaHoje.dataHora)}).`
+        });
+        return;
     }
 
-    // Alterna automaticamente entre Entrada e Saída
-    const tipoMovimentacao = ultimaHoje && ultimaHoje.tipo === "Entrada" ? "Saída" : "Entrada";
-
-    movimentacoes.unshift({
-        id: crypto.randomUUID(),
+    // CASO 3: Nenhuma movimentação hoje -> Registra Entrada
+    const registroEntrada = {
+        id: `${hoje}_${cpfLimpoAtual}_Entrada`,
         alunoId: perfilAluno.id,
         cpf: cpfFormatadoAtual,
         cpfLimpo: cpfLimpoAtual,
         nome: perfilAluno.nome,
         turma: perfilAluno.turma,
-        tipo: tipoMovimentacao,
+        tipo: "Entrada",
         dataHora: agora.toISOString(),
         dia: hoje
-    });
+    };
 
-    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(movimentacoes));
+    await gravarMovimentacaoNuvemELocal(registroEntrada);
     emitirFeedbackSensorial();
 
     renderizarCartaoLiberado({
-        perfilAluno: { ...perfilAluno, cpf: cpfFormatadoAtual },
-        tipoMovimentacao,
-        horario,
-        jaRegistradoRecentemente: false
+        perfilAluno: alunoFormatado,
+        estado: "entrada_liberada",
+        subtexto: `Entrada única do dia liberada às ${horario}`
     });
 }
 
-function renderizarCartaoLiberado({ perfilAluno, tipoMovimentacao, horario, jaRegistradoRecentemente }) {
-    const corBorda = jaRegistradoRecentemente
-        ? "#f59e0b"
-        : (tipoMovimentacao === "Entrada" ? "#22c55e" : "#3b82f6");
+function renderizarCartaoLiberado({ perfilAluno, estado, subtexto }) {
+    const estilos = {
+        entrada_liberada: {
+            borda: "#22c55e",
+            corTitulo: "#86efac",
+            titulo: "✓ Entrada liberada",
+            badge: "Entrada liberada"
+        },
+        saida_liberada: {
+            borda: "#3b82f6",
+            corTitulo: "#93c5fd",
+            titulo: "✓ Saída liberada",
+            badge: "Saída liberada"
+        },
+        entrada_recente: {
+            borda: "#f59e0b",
+            corTitulo: "#fcd34d",
+            titulo: "✓ Entrada já registrada",
+            badge: "Já registrado"
+        },
+        dia_concluido: {
+            borda: "#8b5cf6",
+            corTitulo: "#c4b5fd",
+            titulo: "✓ Frequência do dia concluída",
+            badge: "Dia concluído"
+        }
+    };
 
-    const corTitulo = jaRegistradoRecentemente
-        ? "#fcd34d"
-        : (tipoMovimentacao === "Entrada" ? "#86efac" : "#93c5fd");
-
-    const tituloPrincipal = jaRegistradoRecentemente
-        ? `✓ ${tipoMovimentacao} já registrada`
-        : `✓ ${tipoMovimentacao} liberada`;
-
-    const subtexto = jaRegistradoRecentemente
-        ? `Leitura repetida ignorada. Registro feito às ${horario}.`
-        : `Liberado automaticamente às ${horario}`;
+    const visual = estilos[estado] || estilos.entrada_liberada;
 
     painelQrEscola.style.display = "none";
     resultadoLeitura.style.display = "block";
-    resultadoLeitura.style.borderColor = corBorda;
+    resultadoLeitura.style.borderColor = visual.borda;
 
     mensagemResultado.innerHTML = `
         <div style="margin-bottom: 10px;">
@@ -384,8 +553,8 @@ function renderizarCartaoLiberado({ perfilAluno, tipoMovimentacao, horario, jaRe
             </span>
         </div>
 
-        <p style="color: ${corTitulo}; font-weight: bold; font-size: 26px; margin-bottom: 12px;">
-            ${tituloPrincipal}
+        <p style="color: ${visual.corTitulo}; font-weight: bold; font-size: 25px; margin-bottom: 12px;">
+            ${visual.titulo}
         </p>
 
         <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
@@ -396,7 +565,7 @@ function renderizarCartaoLiberado({ perfilAluno, tipoMovimentacao, horario, jaRe
                 Turma: <strong>${escaparHTML(perfilAluno.turma)}</strong> • CPF: <strong>${escaparHTML(perfilAluno.cpf)}</strong>
             </p>
             <p style="font-size: 13px; color: #94a3b8; margin-top: 6px;">
-                ${subtexto}
+                ${escaparHTML(subtexto)}
             </p>
         </div>
 
@@ -409,8 +578,8 @@ function renderizarCartaoLiberado({ perfilAluno, tipoMovimentacao, horario, jaRe
         </button>
     `;
 
-    if (badgeStatus) badgeStatus.textContent = `${tipoMovimentacao} liberada`;
-    if (statusLeitor) statusLeitor.textContent = "Celular reconhecido automaticamente.";
+    if (badgeStatus) badgeStatus.textContent = visual.badge;
+    if (statusLeitor) statusLeitor.textContent = "Limite diário: 1 entrada e 1 saída por dia.";
 }
 
 function trocarAlunoDispositivo() {
@@ -440,13 +609,13 @@ function exibirQrInvalido(motivo) {
 // 5. INICIALIZAÇÃO
 // ==========================================
 
-function iniciarPaginaQr() {
+async function iniciarPaginaQr() {
     const params = new URLSearchParams(window.location.search);
     const chaveNaUrl = params.get("chave");
 
     if (chaveNaUrl !== null) {
         const chaveLimpa = chaveNaUrl.trim();
-        const chaveOficial = obterChaveOficialAtiva();
+        const chaveOficial = await obterChaveOficialAtiva();
 
         if (chaveLimpa !== chaveOficial) {
             exibirQrInvalido("Este QR Code não é válido ou foi substituído.");
@@ -458,14 +627,14 @@ function iniciarPaginaQr() {
         );
 
         if (alunoSalvo && alunoSalvo.nome && limparCPF(alunoSalvo.cpfLimpo || alunoSalvo.cpf).length === 11) {
-            liberarAcessoEmUmSegundo(alunoSalvo);
+            await liberarAcessoEmUmSegundo(alunoSalvo);
         } else {
             solicitarIdentificacaoUnica();
         }
         return;
     }
 
-    renderizarQrCodeOficial();
+    await renderizarQrCodeOficial();
 }
 
 iniciarPaginaQr();

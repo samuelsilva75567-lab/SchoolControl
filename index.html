@@ -6,7 +6,6 @@
     <title>SchoolControl | Painel Administrativo</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Tela de Login Administrativo */
         .login-overlay {
             position: fixed;
             inset: 0;
@@ -77,8 +76,6 @@
             margin-bottom: 14px;
             display: none;
         }
-
-        /* Cabeçalho e Menu Estilizados do Painel */
         .admin-wrapper {
             max-width: 1200px;
             margin: 0 auto;
@@ -108,6 +105,17 @@
             color: #94a3b8;
             font-size: 14px;
             margin: 0;
+        }
+        .status-nuvem {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border: 1px solid #10b981;
         }
         .acoes-topo {
             display: flex;
@@ -166,8 +174,6 @@
             border-color: #3b82f6;
             color: #ffffff;
         }
-
-        /* Botão Flutuante no Canto Inferior Esquerdo */
         .btn-flutuante-senha {
             position: fixed;
             bottom: 18px;
@@ -189,8 +195,6 @@
             color: #ffffff;
             border-color: #3b82f6;
         }
-
-        /* Modal de Alteração de Senha */
         .modal-senha-overlay {
             position: fixed;
             inset: 0;
@@ -281,20 +285,10 @@
 
             <form id="formLoginAdmin">
                 <label for="emailAdmin">E-mail do Administrador</label>
-                <input
-                    type="email"
-                    id="emailAdmin"
-                    placeholder="admin@escola.com"
-                    required
-                >
+                <input type="email" id="emailAdmin" placeholder="admin@escola.com" required>
 
                 <label for="senhaAdmin">Senha</label>
-                <input
-                    type="password"
-                    id="senhaAdmin"
-                    placeholder="••••••••"
-                    required
-                >
+                <input type="password" id="senhaAdmin" placeholder="••••••••" required>
 
                 <button type="submit">Entrar no Painel</button>
             </form>
@@ -307,6 +301,7 @@
             <div>
                 <h1>School<span>Control</span></h1>
                 <p>Painel Administrativo Escolar</p>
+                <span id="badgeStatusNuvem" class="status-nuvem">Verificando conexão...</span>
             </div>
 
             <div class="acoes-topo">
@@ -344,7 +339,6 @@
 
         <main id="areaConteudo" class="conteudo"></main>
 
-        <!-- BOTÃO NO CANTO INFERIOR ESQUERDO -->
         <button type="button" class="btn-flutuante-senha" onclick="abrirModalMudarSenha()">
             Mudar senha de admin
         </button>
@@ -358,65 +352,37 @@
 
             <div id="erroModalSenha" class="erro-login"></div>
 
-            <!-- ETAPA 1: VERIFICAR SENHA ANTIGA -->
             <form id="formVerificarSenhaAntiga">
                 <label for="senhaAntigaInput">Senha antiga</label>
-                <input
-                    type="password"
-                    id="senhaAntigaInput"
-                    placeholder="Digite sua senha atual"
-                    required
-                >
+                <input type="password" id="senhaAntigaInput" placeholder="Digite sua senha atual" required>
 
                 <div class="modal-acoes">
-                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn-confirmar-modal">
-                        Verificar
-                    </button>
+                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">Cancelar</button>
+                    <button type="submit" class="btn-confirmar-modal">Verificar</button>
                 </div>
             </form>
 
-            <!-- ETAPA 2: DEFINIR NOVA SENHA (LIBERADA APÓS VALIDAR A ANTIGA) -->
             <form id="formDefinirNovaSenha" style="display: none;">
                 <label for="novoEmailModal">E-mail de acesso</label>
-                <input
-                    type="email"
-                    id="novoEmailModal"
-                    required
-                >
+                <input type="email" id="novoEmailModal" required>
 
                 <label for="novaSenhaModal">Nova senha</label>
-                <input
-                    type="password"
-                    id="novaSenhaModal"
-                    placeholder="Mínimo 4 caracteres"
-                    minlength="4"
-                    required
-                >
+                <input type="password" id="novaSenhaModal" placeholder="Mínimo 4 caracteres" minlength="4" required>
 
                 <label for="confirmarNovaSenhaModal">Confirmar nova senha</label>
-                <input
-                    type="password"
-                    id="confirmarNovaSenhaModal"
-                    placeholder="Repita a nova senha"
-                    minlength="4"
-                    required
-                >
+                <input type="password" id="confirmarNovaSenhaModal" placeholder="Repita a nova senha" minlength="4" required>
 
                 <div class="modal-acoes">
-                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn-confirmar-modal">
-                        Salvar nova senha
-                    </button>
+                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">Cancelar</button>
+                    <button type="submit" class="btn-confirmar-modal">Salvar nova senha</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- SUPABASE + SISTEMA PRINCIPAL -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
