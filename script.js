@@ -118,10 +118,7 @@ function abrirTela(tela) {
 
     if (tela === "inicio") {
 
-        area.innerHTML = `
-            <h2>Bem-vindo ao SchoolControl!</h2>
-            <p>Este é o painel principal do sistema escolar.</p>
-        `;
+        mostrarTelaInicio();
 
     } else if (tela === "alunos") {
 
@@ -140,6 +137,78 @@ function abrirTela(tela) {
         mostrarRelatorios();
 
     }
+}
+
+
+// ==========================================
+// 6.1 TELA INICIAL E CONFIGURAÇÃO DO QR CODE OFICIAL
+// ==========================================
+
+function mostrarTelaInicio() {
+    const area = document.getElementById("areaConteudo");
+    if (!area) return;
+
+    const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
+
+    area.innerHTML = `
+        <h2>Bem-vindo ao SchoolControl!</h2>
+        <p>Este é o painel principal do sistema escolar.</p>
+
+        <div class="painel-movimentacao" style="margin-top: 24px;">
+            <h3>QR Code Oficial da Escola</h3>
+            <p>
+                Cole abaixo o código ou texto exato contido no QR Code oficial da portaria.
+                Apenas este QR Code será aceito pelo leitor para liberar a entrada.
+            </p>
+
+            <form id="formQrOficial" style="margin-top: 14px;">
+                <label for="inputQrOficial">Código / Conteúdo do QR Code Oficial</label>
+                <input
+                    type="text"
+                    id="inputQrOficial"
+                    value="${escaparHTML(codigoAtual)}"
+                    placeholder="Cole aqui o texto ou link do QR Code oficial"
+                    required
+                >
+
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <button type="submit">
+                        Salvar QR Code Oficial
+                    </button>
+
+                    <button type="button" onclick="gerarCodigoAleatorioQR()">
+                        Gerar Código Seguro Automático
+                    </button>
+                </div>
+            </form>
+
+            <p id="statusQrOficial" style="margin-top: 12px; font-weight: bold; color: #60a5fa;">
+                ${codigoAtual ? "✓ QR Code oficial configurado e ativo no leitor." : "⚠ Nenhum QR Code oficial configurado ainda."}
+            </p>
+        </div>
+    `;
+
+    document.getElementById("formQrOficial").addEventListener("submit", function(event) {
+        event.preventDefault();
+        const valor = document.getElementById("inputQrOficial").value.trim();
+
+        if (!valor) {
+            alert("Digite ou cole um código válido para o QR Code oficial.");
+            return;
+        }
+
+        localStorage.setItem("schoolcontrol_qr_oficial", valor);
+        document.getElementById("statusQrOficial").textContent =
+            "✓ QR Code oficial salvo com sucesso! Apenas ele liberará a entrada.";
+        alert("QR Code oficial atualizado!");
+    });
+}
+
+function gerarCodigoAleatorioQR() {
+    const campo = document.getElementById("inputQrOficial");
+    if (!campo) return;
+
+    campo.value = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
 }
 
 
@@ -262,8 +331,6 @@ function atualizarListaAlunos() {
             <p>Turma: ${escaparHTML(aluno.turma)}</p>
 
             <p>Matrícula: ${escaparHTML(aluno.matricula)}</p>
-
-            <p>Código QR (ID): <code>${escaparHTML(aluno.id)}</code></p>
 
         </div>
     `).join("");
@@ -951,3 +1018,4 @@ function exportarRelatorioCSV() {
 // ==========================================
 
 atualizarResumo();
+mostrarTelaInicio();
