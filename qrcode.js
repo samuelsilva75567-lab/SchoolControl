@@ -1,5 +1,5 @@
 // ==========================================
-// SCHOOLCONTROL - QR CODE OFICIAL + SUPABASE + MODO TESTE CPF
+// SCHOOLCONTROL - QR CODE OFICIAL + SUPABASE + IDENTIFICAÇÃO 1 SEGUNDO
 // ==========================================
 
 const painelQrEscola = document.getElementById("painelQrEscola");
@@ -13,7 +13,7 @@ const CHAVE_PADRAO_ESCOLA = "SCHOOLCONTROL-A30DC0FB-F9E9-467A-886D-542D9B820F67"
 const TEMPO_MINIMO_ENTRE_REGISTROS_MS = 2 * 60 * 1000; // 2 minutos contra leitura dupla
 
 // ==========================================
-// 1. UTILITÁRIOS, CPF E CHAVE OFICIAL
+// 1. UTILITÁRIOS, VALIDAÇÃO OFICIAL DE CPF E CHAVE
 // ==========================================
 
 function extrairChave(texto) {
@@ -76,10 +76,29 @@ function formatarCPF(valor) {
         .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
-// Modo teste: aceita qualquer sequência de 11 dígitos
 function validarCPF(cpf) {
     const limpo = limparCPF(cpf);
-    return limpo.length === 11;
+    if (limpo.length !== 11 || /^(\d)\1{10}$/.test(limpo)) {
+        return false;
+    }
+
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+        soma += parseInt(limpo.charAt(i), 10) * (10 - i);
+    }
+    let resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(limpo.charAt(9), 10)) {
+        return false;
+    }
+
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+        soma += parseInt(limpo.charAt(i), 10) * (11 - i);
+    }
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    return resto === parseInt(limpo.charAt(10), 10);
 }
 
 function dataDeHojeLocal() {
@@ -190,7 +209,7 @@ function solicitarIdentificacaoUnica() {
                 Vincular este celular
             </h3>
             <p style="font-size: 13px; color: #94a3b8;">
-                Preencha uma única vez. A partir de amanhã, basta apontar a câmera para liberar em <strong>1 segundo</strong> sem digitar nada.
+                Preencha uma única vez com seu CPF válido. A partir de amanhã, basta apontar a câmera para liberar em <strong>1 segundo</strong> sem digitar nada.
             </p>
         </div>
 
@@ -198,7 +217,7 @@ function solicitarIdentificacaoUnica() {
 
         <form id="formIdentificacaoRapida" style="text-align: left;">
             <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 5px; font-weight: 600;">
-                CPF do Aluno (11 dígitos)
+                CPF do Aluno (obrigatório e válido)
             </label>
             <input
                 type="text"
@@ -249,7 +268,7 @@ function solicitarIdentificacaoUnica() {
         erroBox.style.display = "none";
 
         const cpfLimpo = limparCPF(inputCpf.value);
-        if (cpfLimpo.length === 11) {
+        if (cpfLimpo.length === 11 && validarCPF(cpfLimpo)) {
             if (window.supabaseAtivo && window.supabaseClient) {
                 try {
                     const { data: alunoNuvem } = await window.supabaseClient
@@ -287,7 +306,7 @@ function solicitarIdentificacaoUnica() {
         const btnSalvar = document.getElementById("btnSalvarIdentificacao");
 
         if (!validarCPF(cpfLimpo)) {
-            erroBox.textContent = "Digite os 11 números do CPF.";
+            erroBox.textContent = "CPF inválido. Digite um CPF válido com 11 números.";
             erroBox.style.display = "block";
             inputCpf.focus();
             return;
@@ -614,9 +633,10 @@ async function iniciarPaginaQr() {
             localStorage.getItem("schoolcontrol_aluno_dispositivo") || "null"
         );
 
-        if (alunoSalvo && alunoSalvo.nome && limparCPF(alunoSalvo.cpfLimpo || alunoSalvo.cpf).length === 11) {
+        if (alunoSalvo && alunoSalvo.nome && validarCPF(alunoSalvo.cpfLimpo || alunoSalvo.cpf)) {
             await liberarAcessoEmUmSegundo(alunoSalvo);
         } else {
+            localStorage.removeItem("schoolcontrol_aluno_dispositivo");
             solicitarIdentificacaoUnica();
         }
         return;
