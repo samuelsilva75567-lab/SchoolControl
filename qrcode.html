@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SchoolControl | Leitor QR Code</title>
+    <title>SchoolControl | QR Code Oficial da Escola</title>
 
     <link rel="stylesheet" href="qrcode.css">
 </head>
@@ -20,56 +20,48 @@
 
             <div class="status-sistema">
                 <span class="status-indicador"></span>
-                <span>Leitor disponível</span>
+                <span id="badgeStatus">QR Code ativo</span>
             </div>
         </header>
 
         <section class="leitor-conteudo">
 
-            <div class="titulo-leitor">
-                <h2>Leitura de QR Code</h2>
-                <p>
-                    Posicione o QR Code do aluno em frente à câmera
-                    para realizar a identificação.
-                </p>
-            </div>
+            <!-- MODO 1: EXIBIÇÃO DO QR CODE OFICIAL DA ESCOLA -->
+            <div id="painelQrEscola" class="painel-camera">
+                <div class="titulo-leitor">
+                    <h2>QR Code Oficial da Escola</h2>
+                    <p>
+                        Aponte a câmera do seu celular para o QR Code abaixo
+                        para liberar sua entrada.
+                    </p>
+                </div>
 
-            <div class="painel-camera">
-
-                <div class="camera-area">
-                    <div id="reader">
-                        <div class="camera-placeholder">
-                            <div class="camera-icon">▣</div>
-                            <h3>Câmera aguardando</h3>
-                            <p>A câmera aparecerá aqui quando for iniciada.</p>
-                        </div>
+                <div class="camera-area" style="padding: 24px; flex-direction: column;">
+                    <div id="qrcodeContainer" style="background: #ffffff; padding: 18px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;">
+                        <p style="color: #080d18; font-weight: bold;">Carregando QR Code...</p>
                     </div>
                 </div>
 
                 <div class="instrucoes-camera">
                     <span class="icone-info">i</span>
-                    <p>
-                        Mantenha o QR Code dentro da área de leitura
-                        e aguarde a identificação.
+                    <p id="textoInstrucaoQr">
+                        Utilize a câmera do seu celular para escanear o código acima.
                     </p>
                 </div>
 
-                <button id="iniciarLeitura" class="botao-iniciar">
-                    Iniciar câmera
+                <button id="btnImprimirQr" type="button" class="botao-iniciar" onclick="window.print()">
+                    Imprimir QR Code
                 </button>
-
-                <p id="statusLeitor" class="mensagem-status">
-                    Aguardando início da leitura.
-                </p>
-
             </div>
 
-            <div id="resultadoLeitura" class="resultado-leitura">
-                <h3>Resultado da leitura</h3>
-                <div id="mensagemResultado">
-                    <p>Nenhum aluno identificado.</p>
-                </div>
+            <!-- MODO 2: TELA EXIBIDA NO CELULAR DO ALUNO APÓS LER O QR CODE -->
+            <div id="resultadoLeitura" class="resultado-leitura" style="display: none;">
+                <div id="mensagemResultado"></div>
             </div>
+
+            <p id="statusLeitor" class="mensagem-status">
+                Sistema pronto.
+            </p>
 
         </section>
 
@@ -80,7 +72,8 @@
 
     </main>
 
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Biblioteca leve para gerar o QR Code oficial na tela -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="qrcode.js"></script>
 
 </body>
