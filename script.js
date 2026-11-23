@@ -1,9 +1,9 @@
 // ==========================================
-// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL (SUPABASE)
+// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL
 // ==========================================
 
-const EMAIL_PADRAO = "samuel.silva75567@aluno.seduc.pa.gov.br";
-const SENHA_PADRAO = "ScH@94mK#2026pL";
+const EMAIL_PADRAO = "admin@escola.com";
+const SENHA_PADRAO = "admin123";
 
 let telaAtualAdmin = "inicio";
 
@@ -240,7 +240,6 @@ function iniciarSincronizacaoSupabase() {
 
     carregarDadosSupabase();
 
-    // Escuta alterações em tempo real vindas dos celulares dos alunos
     window.supabaseClient
         .channel("schoolcontrol-realtime")
         .on("postgres_changes", { event: "*", schema: "public", table: "sc_alunos" }, () => {
@@ -287,7 +286,9 @@ function formatarCPF(valor) {
 
 function validarCPF(cpf) {
     const limpo = limparCPF(cpf);
-    if (limpo.length !== 11 || /^(\d)\1{10}$/.test(limpo)) return false;
+    if (limpo.length !== 11 || /^(\d)\1{10}$/.test(limpo)) {
+        return false;
+    }
 
     let soma = 0;
     for (let i = 0; i < 9; i++) {
@@ -295,7 +296,9 @@ function validarCPF(cpf) {
     }
     let resto = (soma * 10) % 11;
     if (resto === 10 || resto === 11) resto = 0;
-    if (resto !== parseInt(limpo.charAt(9), 10)) return false;
+    if (resto !== parseInt(limpo.charAt(9), 10)) {
+        return false;
+    }
 
     soma = 0;
     for (let i = 0; i < 10; i++) {
@@ -434,7 +437,7 @@ function gerarCodigoAleatorioQR() {
 
 
 // ==========================================
-// 5. TELA DE ALUNOS (COM CPF)
+// 5. TELA DE ALUNOS (CADASTRO E EXCLUSÃO INDIVIDUAL)
 // ==========================================
 
 function mostrarTelaAlunos() {
@@ -443,7 +446,7 @@ function mostrarTelaAlunos() {
 
     area.innerHTML = `
         <h2>Gestão de Alunos</h2>
-        <p>Cadastre e consulte os alunos pelo CPF.</p>
+        <p>Cadastre, consulte ou exclua alunos pelo CPF válido.</p>
 
         <form id="formAluno">
             <label>Nome do aluno</label>
@@ -452,14 +455,17 @@ function mostrarTelaAlunos() {
             <label>Turma</label>
             <input type="text" id="turmaAluno" placeholder="Ex: 8º ano A" required>
 
-            <label>CPF</label>
+            <label>CPF válido</label>
             <input type="text" id="cpfAluno" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required>
 
             <button type="submit">Cadastrar aluno</button>
         </form>
 
-        <h3>Alunos cadastrados</h3>
-        <div id="listaAlunos"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin: 0;">Alunos cadastrados (${alunos.length})</h3>
+            ${alunos.length > 0 ? `<button type="button" onclick="excluirTodosAlunos()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5;">Excluir todos os alunos</button>` : ""}
+        </div>
+        <div id="listaAlunos" style="margin-top: 12px;"></div>
     `;
 
     const inputCpf = document.getElementById("cpfAluno");
@@ -485,7 +491,7 @@ async function cadastrarAluno(event) {
     }
 
     if (!validarCPF(cpfLimpo)) {
-        alert("CPF inválido. Verifique os 11 números digitados.");
+        alert("CPF inválido. Digite um CPF válido com 11 números.");
         return;
     }
 
@@ -525,6 +531,73 @@ async function cadastrarAluno(event) {
     alert("Aluno cadastrado com sucesso!");
 }
 
+async function excluirAlunoCompleto(cpfLimpoOuId) {
+    const aluno = alunos.find(
+        a => limparCPF(a.cpfLimpo || a.cpf) === cpfLimpoOuId || a.id === cpfLimpoOuId
+    );
+    if (!aluno) return;
+
+    if (!confirm(`Excluir "${aluno.nome}" do sistema e apagar todo o histórico dele?`)) {
+        return;
+    }
+
+    const cpfAlvo = limparCPF(aluno.cpfLimpo || aluno.cpf);
+
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            if (cpfAlvo) {
+                await window.supabaseClient.from("sc_movimentacoes").delete().eq("cpf_limpo", cpfAlvo);
+                await window.supabaseClient.from("sc_alunos").delete().eq("cpf_limpo", cpfAlvo);
+            } else {
+                await window.supabaseClient.from("sc_movimentacoes").delete().eq("aluno_id", aluno.id);
+                await window.supabaseClient.from("sc_alunos").delete().eq("id", aluno.id);
+            }
+        } catch (erro) {
+            console.error("Erro ao excluir aluno no Supabase:", erro);
+        }
+    }
+
+    alunos = alunos.filter(
+        a => !(cpfAlvo ? limparCPF(a.cpfLimpo || a.cpf) === cpfAlvo : a.id === aluno.id)
+    );
+    movimentacoes = movimentacoes.filter(
+        m => !(cpfAlvo ? limparCPF(m.cpfLimpo || m.cpf) === cpfAlvo : m.alunoId === aluno.id)
+    );
+
+    salvarAlunosLocal();
+    salvarMovimentacoesLocal();
+    atualizarResumo();
+
+    if (telaAtualAdmin === "alunos") mostrarTelaAlunos();
+    if (telaAtualAdmin === "historico") filtrarHistorico();
+    if (telaAtualAdmin === "entrada") mostrarTelaMovimentacao();
+    if (telaAtualAdmin === "relatorios") mostrarRelatorios();
+}
+
+async function excluirTodosAlunos() {
+    if (alunos.length === 0) return;
+    if (!confirm("Tem certeza que deseja excluir TODOS os alunos e TODO o histórico do sistema?")) {
+        return;
+    }
+
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_movimentacoes").delete().neq("id", "");
+            await window.supabaseClient.from("sc_alunos").delete().neq("cpf_limpo", "");
+        } catch (erro) {
+            console.error("Erro ao excluir todos os dados no Supabase:", erro);
+        }
+    }
+
+    alunos = [];
+    movimentacoes = [];
+    salvarAlunosLocal();
+    salvarMovimentacoesLocal();
+    atualizarResumo();
+    mostrarTelaAlunos();
+    alert("Todos os alunos e registros foram excluídos!");
+}
+
 function atualizarListaAlunos() {
     const lista = document.getElementById("listaAlunos");
     if (!lista) return;
@@ -534,13 +607,25 @@ function atualizarListaAlunos() {
         return;
     }
 
-    lista.innerHTML = alunos.map(aluno => `
-        <div class="aluno-item">
-            <strong>${escaparHTML(aluno.nome)}</strong>
-            <p>Turma: ${escaparHTML(aluno.turma)}</p>
-            <p>CPF: ${escaparHTML(aluno.cpf || aluno.matricula || "Não informado")}</p>
-        </div>
-    `).join("");
+    lista.innerHTML = alunos.map(aluno => {
+        const identificador = limparCPF(aluno.cpfLimpo || aluno.cpf) || aluno.id;
+        return `
+            <div class="aluno-item" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <strong>${escaparHTML(aluno.nome)}</strong>
+                    <p>Turma: ${escaparHTML(aluno.turma)}</p>
+                    <p>CPF: ${escaparHTML(aluno.cpf || aluno.matricula || "Não informado")}</p>
+                </div>
+                <button
+                    type="button"
+                    onclick="excluirAlunoCompleto('${escaparHTML(identificador)}')"
+                    style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 8px 12px; border-radius: 8px; cursor: pointer;"
+                >
+                    Excluir aluno
+                </button>
+            </div>
+        `;
+    }).join("");
 }
 
 
@@ -672,7 +757,7 @@ function mostrarMovimentacoesRecentes() {
 
 
 // ==========================================
-// 7. HISTÓRICO E RELATÓRIOS
+// 7. HISTÓRICO (EXCLUIR 1 OU EXCLUIR TUDO DE TODAS AS ABAS)
 // ==========================================
 
 function mostrarHistorico() {
@@ -682,7 +767,7 @@ function mostrarHistorico() {
     area.innerHTML = `
         <div class="cabecalho-historico">
             <h2>Histórico de Movimentações</h2>
-            <p>Consulte todas as entradas e saídas dos alunos em tempo real.</p>
+            <p>Consulte e gerencie todas as entradas e saídas dos alunos.</p>
         </div>
 
         <div class="painel-historico">
@@ -699,7 +784,9 @@ function mostrarHistorico() {
                 <option value="Saída">Somente saídas</option>
             </select>
 
-            <button type="button" onclick="limparHistorico()">Limpar histórico</button>
+            <button type="button" onclick="limparHistorico()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5;">
+                Limpar histórico e alunos
+            </button>
 
             <div class="tabela-responsiva">
                 <table class="tabela-historico">
@@ -709,6 +796,7 @@ function mostrarHistorico() {
                             <th>Turma</th>
                             <th>Movimentação</th>
                             <th>Data e horário</th>
+                            <th>Ação</th>
                         </tr>
                     </thead>
                     <tbody id="corpoHistorico"></tbody>
@@ -740,7 +828,7 @@ function filtrarHistorico() {
     total.textContent = `${filtradas.length} registros`;
 
     if (filtradas.length === 0) {
-        corpo.innerHTML = `<tr><td colspan="4" class="historico-vazio">Nenhuma movimentação encontrada.</td></tr>`;
+        corpo.innerHTML = `<tr><td colspan="5" class="historico-vazio">Nenhuma movimentação encontrada.</td></tr>`;
         return;
     }
 
@@ -754,30 +842,97 @@ function filtrarHistorico() {
                 </span>
             </td>
             <td>${new Date(item.dataHora).toLocaleString("pt-BR")}</td>
+            <td>
+                <button
+                    type="button"
+                    onclick="excluirRegistroUnico('${escaparHTML(item.id)}')"
+                    style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;"
+                >
+                    Excluir
+                </button>
+            </td>
         </tr>
     `).join("");
 }
 
-async function limparHistorico() {
-    if (movimentacoes.length === 0) {
-        alert("O histórico já está vazio.");
+async function excluirRegistroUnico(registroId) {
+    const registro = movimentacoes.find(m => m.id === registroId);
+    if (!registro) return;
+
+    if (!confirm(`Excluir este registro de ${registro.tipo} de "${registro.nome}"? (Se desejar remover o aluno de todo o sistema, clique em OK e confirme a próxima pergunta.)`)) {
         return;
     }
-    if (!confirm("Tem certeza que deseja apagar todo o histórico na nuvem e localmente?")) return;
 
     if (window.supabaseAtivo && window.supabaseClient) {
         try {
-            await window.supabaseClient.from("sc_movimentacoes").delete().not("id", "is", null);
+            await window.supabaseClient.from("sc_movimentacoes").delete().eq("id", registroId);
         } catch (erro) {
-            console.error("Erro ao limpar histórico no Supabase:", erro);
+            console.error("Erro ao excluir registro no Supabase:", erro);
+        }
+    }
+
+    movimentacoes = movimentacoes.filter(m => m.id !== registroId);
+    salvarMovimentacoesLocal();
+
+    const cpfAlvo = limparCPF(registro.cpfLimpo || registro.cpf);
+    const aindaTemRegistros = movimentacoes.some(
+        m => (cpfAlvo ? limparCPF(m.cpfLimpo || m.cpf) === cpfAlvo : m.alunoId === registro.alunoId)
+    );
+
+    if (!aindaTemRegistros) {
+        const removerAluno = confirm(
+            `"${registro.nome}" não possui mais movimentações. Deseja removê-lo também da lista de Alunos e de todas as abas?`
+        );
+        if (removerAluno) {
+            if (window.supabaseAtivo && window.supabaseClient) {
+                try {
+                    if (cpfAlvo) {
+                        await window.supabaseClient.from("sc_alunos").delete().eq("cpf_limpo", cpfAlvo);
+                    } else if (registro.alunoId) {
+                        await window.supabaseClient.from("sc_alunos").delete().eq("id", registro.alunoId);
+                    }
+                } catch (erro) {
+                    console.error("Erro ao remover aluno no Supabase:", erro);
+                }
+            }
+
+            alunos = alunos.filter(
+                a => !(cpfAlvo ? limparCPF(a.cpfLimpo || a.cpf) === cpfAlvo : a.id === registro.alunoId)
+            );
+            salvarAlunosLocal();
+        }
+    }
+
+    filtrarHistorico();
+    atualizarResumo();
+}
+
+async function limparHistorico() {
+    if (movimentacoes.length === 0 && alunos.length === 0) {
+        alert("O histórico e a lista de alunos já estão vazios.");
+        return;
+    }
+
+    if (!confirm("Tem certeza que deseja apagar TODO o histórico e remover TODOS os alunos de todas as abas?")) {
+        return;
+    }
+
+    if (window.supabaseAtivo && window.supabaseClient) {
+        try {
+            await window.supabaseClient.from("sc_movimentacoes").delete().neq("id", "");
+            await window.supabaseClient.from("sc_alunos").delete().neq("cpf_limpo", "");
+        } catch (erro) {
+            console.error("Erro ao limpar dados no Supabase:", erro);
         }
     }
 
     movimentacoes = [];
+    alunos = [];
     salvarMovimentacoesLocal();
+    salvarAlunosLocal();
     filtrarHistorico();
     atualizarResumo();
-    alert("Histórico apagado com sucesso!");
+    alert("Histórico e alunos apagados com sucesso de todas as abas!");
 }
 
 function mostrarRelatorios() {
