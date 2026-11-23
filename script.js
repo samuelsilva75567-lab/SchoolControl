@@ -3,8 +3,8 @@
 // ==========================================
 
 // Credenciais padrão iniciais
-const EMAIL_PADRAO = "admin@escola.com";
-const SENHA_PADRAO = "admin123";
+const EMAIL_PADRAO = "samuel.silva75567@aluno.seduc.pa.gov.br";
+const SENHA_PADRAO = "ScH@94mK#2026pL";
 
 function obterCredenciaisAdmin() {
     const salvo = JSON.parse(localStorage.getItem("schoolcontrol_admin_credenciais") || "null");
