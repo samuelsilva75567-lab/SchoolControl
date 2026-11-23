@@ -3,7 +3,7 @@
 // ==========================================
 
 const SUPABASE_URL = "https://iggfiramjxmfehunnmzd.supabase.co";
-const SUPABASE_ANON_KEY = "COLE_A_CHAVE_PUBLICA_AQUI";
+const SUPABASE_ANON_KEY = "sb_publishable_DgF9t2G27RvcUXo4o0tVpA_59lTbYZg";
 
 window.supabaseAtivo = false;
 window.supabaseClient = null;
