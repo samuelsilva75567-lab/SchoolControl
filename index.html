@@ -82,7 +82,7 @@
         .admin-wrapper {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 24px 20px;
+            padding: 24px 20px 80px 20px;
         }
         .admin-header {
             background: #0f172a;
@@ -166,6 +166,105 @@
             border-color: #3b82f6;
             color: #ffffff;
         }
+
+        /* Botão Flutuante no Canto Inferior Esquerdo */
+        .btn-flutuante-senha {
+            position: fixed;
+            bottom: 18px;
+            left: 18px;
+            background: #0f172a;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+            z-index: 900;
+            transition: 0.2s;
+        }
+        .btn-flutuante-senha:hover {
+            background: #1e293b;
+            color: #ffffff;
+            border-color: #3b82f6;
+        }
+
+        /* Modal de Alteração de Senha */
+        .modal-senha-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 8, 18, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9500;
+        }
+        .modal-senha-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 28px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+        }
+        .modal-senha-card h3 {
+            color: #f8fafc;
+            margin-bottom: 6px;
+            font-size: 20px;
+        }
+        .modal-senha-card p {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+        .modal-senha-card label {
+            display: block;
+            color: #cbd5e1;
+            font-size: 13px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .modal-senha-card input {
+            width: 100%;
+            padding: 11px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #080d18;
+            color: #f8fafc;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+        .modal-acoes {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        .modal-acoes button {
+            flex: 1;
+            padding: 11px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-confirmar-modal {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .btn-confirmar-modal:hover {
+            background: #1d4ed8;
+        }
+        .btn-cancelar-modal {
+            background: #1e293b;
+            color: #cbd5e1;
+        }
+        .btn-cancelar-modal:hover {
+            background: #334155;
+        }
     </style>
 </head>
 <body>
@@ -244,6 +343,78 @@
         </section>
 
         <main id="areaConteudo" class="conteudo"></main>
+
+        <!-- BOTÃO NO CANTO INFERIOR ESQUERDO -->
+        <button type="button" class="btn-flutuante-senha" onclick="abrirModalMudarSenha()">
+            Mudar senha de admin
+        </button>
+    </div>
+
+    <!-- MODAL PARA ALTERAÇÃO SEGURA DE SENHA -->
+    <div id="modalMudarSenha" class="modal-senha-overlay">
+        <div class="modal-senha-card">
+            <h3>Mudar senha de admin</h3>
+            <p id="subtituloModalSenha">Confirme sua senha atual para continuar.</p>
+
+            <div id="erroModalSenha" class="erro-login"></div>
+
+            <!-- ETAPA 1: VERIFICAR SENHA ANTIGA -->
+            <form id="formVerificarSenhaAntiga">
+                <label for="senhaAntigaInput">Senha antiga</label>
+                <input
+                    type="password"
+                    id="senhaAntigaInput"
+                    placeholder="Digite sua senha atual"
+                    required
+                >
+
+                <div class="modal-acoes">
+                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-confirmar-modal">
+                        Verificar
+                    </button>
+                </div>
+            </form>
+
+            <!-- ETAPA 2: DEFINIR NOVA SENHA (LIBERADA APÓS VALIDAR A ANTIGA) -->
+            <form id="formDefinirNovaSenha" style="display: none;">
+                <label for="novoEmailModal">E-mail de acesso</label>
+                <input
+                    type="email"
+                    id="novoEmailModal"
+                    required
+                >
+
+                <label for="novaSenhaModal">Nova senha</label>
+                <input
+                    type="password"
+                    id="novaSenhaModal"
+                    placeholder="Mínimo 4 caracteres"
+                    minlength="4"
+                    required
+                >
+
+                <label for="confirmarNovaSenhaModal">Confirmar nova senha</label>
+                <input
+                    type="password"
+                    id="confirmarNovaSenhaModal"
+                    placeholder="Repita a nova senha"
+                    minlength="4"
+                    required
+                >
+
+                <div class="modal-acoes">
+                    <button type="button" class="btn-cancelar-modal" onclick="fecharModalMudarSenha()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-confirmar-modal">
+                        Salvar nova senha
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="script.js"></script>

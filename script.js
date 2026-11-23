@@ -2,9 +2,9 @@
 // SCHOOLCONTROL - SISTEMA PRINCIPAL + LOGIN
 // ==========================================
 
-// Credenciais padrão iniciais (você pode alterar dentro do painel)
-const EMAIL_PADRAO = "samuel.silva75567@aluno.seduc.pa.gov.br";
-const SENHA_PADRAO = "ScH@94mK#2026pL";
+// Credenciais padrão iniciais
+const EMAIL_PADRAO = "admin@escola.com";
+const SENHA_PADRAO = "admin123";
 
 function obterCredenciaisAdmin() {
     const salvo = JSON.parse(localStorage.getItem("schoolcontrol_admin_credenciais") || "null");
@@ -60,6 +60,90 @@ function abrirPaginaQrCode() {
     const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
     window.open(`${urlBase}/qrcode.html`, "_blank");
 }
+
+
+// ==========================================
+// MODAL: MUDAR SENHA DE ADMIN (COM SENHA ANTIGA)
+// ==========================================
+
+function abrirModalMudarSenha() {
+    const modal = document.getElementById("modalMudarSenha");
+    const formAntiga = document.getElementById("formVerificarSenhaAntiga");
+    const formNova = document.getElementById("formDefinirNovaSenha");
+    const erroModal = document.getElementById("erroModalSenha");
+    const subtitulo = document.getElementById("subtituloModalSenha");
+
+    if (!modal) return;
+
+    erroModal.style.display = "none";
+    erroModal.textContent = "";
+    subtitulo.textContent = "Confirme sua senha antiga para liberar a alteração.";
+
+    document.getElementById("senhaAntigaInput").value = "";
+    document.getElementById("novaSenhaModal").value = "";
+    document.getElementById("confirmarNovaSenhaModal").value = "";
+
+    formAntiga.style.display = "block";
+    formNova.style.display = "none";
+    modal.style.display = "flex";
+    document.getElementById("senhaAntigaInput").focus();
+}
+
+function fecharModalMudarSenha() {
+    const modal = document.getElementById("modalMudarSenha");
+    if (modal) modal.style.display = "none";
+}
+
+document.getElementById("formVerificarSenhaAntiga")?.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const senhaDigitada = document.getElementById("senhaAntigaInput").value;
+    const erroModal = document.getElementById("erroModalSenha");
+    const credenciais = obterCredenciaisAdmin();
+
+    if (senhaDigitada !== credenciais.senha) {
+        erroModal.textContent = "Senha antiga incorreta. Tente novamente.";
+        erroModal.style.display = "block";
+        return;
+    }
+
+    erroModal.style.display = "none";
+    document.getElementById("subtituloModalSenha").textContent = "Senha verificada! Preencha os novos dados abaixo.";
+    document.getElementById("novoEmailModal").value = credenciais.email;
+
+    document.getElementById("formVerificarSenhaAntiga").style.display = "none";
+    document.getElementById("formDefinirNovaSenha").style.display = "block";
+    document.getElementById("novaSenhaModal").focus();
+});
+
+document.getElementById("formDefinirNovaSenha")?.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const novoEmail = document.getElementById("novoEmailModal").value.trim();
+    const novaSenha = document.getElementById("novaSenhaModal").value;
+    const confirmarSenha = document.getElementById("confirmarNovaSenhaModal").value;
+    const erroModal = document.getElementById("erroModalSenha");
+
+    if (!novoEmail || !novaSenha) {
+        erroModal.textContent = "Preencha o e-mail e a nova senha.";
+        erroModal.style.display = "block";
+        return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+        erroModal.textContent = "A nova senha e a confirmação não coincidem.";
+        erroModal.style.display = "block";
+        return;
+    }
+
+    localStorage.setItem(
+        "schoolcontrol_admin_credenciais",
+        JSON.stringify({ email: novoEmail, senha: novaSenha })
+    );
+
+    fecharModalMudarSenha();
+    alert("Senha de administrador alterada com sucesso!");
+});
 
 
 // ==========================================
@@ -139,7 +223,7 @@ function abrirTela(tela) {
 
 
 // ==========================================
-// 4. TELA INICIAL (QR CODE OFICIAL + ACESSO ADMIN)
+// 4. TELA INICIAL (QR CODE OFICIAL)
 // ==========================================
 
 function mostrarTelaInicio() {
@@ -147,7 +231,6 @@ function mostrarTelaInicio() {
     if (!area) return;
 
     const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
-    const credenciais = obterCredenciaisAdmin();
 
     area.innerHTML = `
         <h2>Bem-vindo ao SchoolControl!</h2>
@@ -166,7 +249,7 @@ function mostrarTelaInicio() {
                     type="text"
                     id="inputQrOficial"
                     value="${escaparHTML(codigoAtual)}"
-                    placeholder="Clique em Gerar Link Oficial do QR Code"
+                    placeholder="Clique em Gerar Novo QR Code"
                     required
                 >
 
@@ -178,44 +261,12 @@ function mostrarTelaInicio() {
                     <button type="submit">
                         Salvar QR Code Oficial
                     </button>
-
-                    <button type="button" onclick="abrirPaginaQrCode()">
-                        Ir para Tela do QR Code ↗
-                    </button>
                 </div>
             </form>
 
             <p id="statusQrOficial" style="margin-top: 12px; font-weight: bold; color: #60a5fa;">
                 ${codigoAtual ? "✓ QR Code oficial configurado e ativo." : "⚠ Usando QR Code padrão até você salvar um novo."}
             </p>
-        </div>
-
-        <div class="painel-movimentacao" style="margin-top: 24px;">
-            <h3>Segurança do Administrador</h3>
-            <p>Altere o e-mail e a senha de acesso a este painel administrativo.</p>
-
-            <form id="formAlterarCredenciais" style="margin-top: 14px;">
-                <label for="novoEmailAdmin">E-mail de acesso</label>
-                <input
-                    type="email"
-                    id="novoEmailAdmin"
-                    value="${escaparHTML(credenciais.email)}"
-                    required
-                >
-
-                <label for="novaSenhaAdmin">Nova senha</label>
-                <input
-                    type="password"
-                    id="novaSenhaAdmin"
-                    value="${escaparHTML(credenciais.senha)}"
-                    minlength="4"
-                    required
-                >
-
-                <button type="submit" style="margin-top: 10px;">
-                    Atualizar Login Administrativo
-                </button>
-            </form>
         </div>
     `;
 
@@ -228,17 +279,6 @@ function mostrarTelaInicio() {
         document.getElementById("statusQrOficial").textContent =
             "✓ QR Code oficial salvo com sucesso!";
         alert("QR Code oficial atualizado!");
-    });
-
-    document.getElementById("formAlterarCredenciais").addEventListener("submit", function (event) {
-        event.preventDefault();
-        const email = document.getElementById("novoEmailAdmin").value.trim();
-        const senha = document.getElementById("novaSenhaAdmin").value;
-
-        if (!email || !senha) return;
-
-        localStorage.setItem("schoolcontrol_admin_credenciais", JSON.stringify({ email, senha }));
-        alert("E-mail e senha do administrador atualizados com sucesso!");
     });
 }
 
