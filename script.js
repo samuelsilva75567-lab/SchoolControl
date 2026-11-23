@@ -1,6 +1,65 @@
 // ==========================================
-// SCHOOLCONTROL - SISTEMA PRINCIPAL
+// SCHOOLCONTROL - SISTEMA PRINCIPAL + LOGIN
 // ==========================================
+
+// Credenciais padrão iniciais (você pode alterar dentro do painel)
+const EMAIL_PADRAO = "admin@escola.com";
+const SENHA_PADRAO = "admin123";
+
+function obterCredenciaisAdmin() {
+    const salvo = JSON.parse(localStorage.getItem("schoolcontrol_admin_credenciais") || "null");
+    if (salvo && salvo.email && salvo.senha) {
+        return salvo;
+    }
+    return { email: EMAIL_PADRAO, senha: SENHA_PADRAO };
+}
+
+function verificarSessaoAdmin() {
+    const logado = sessionStorage.getItem("schoolcontrol_admin_logado") === "true";
+    const telaLogin = document.getElementById("telaLoginAdmin");
+    const painel = document.getElementById("painelAdminPrincipal");
+
+    if (!telaLogin || !painel) return;
+
+    if (logado) {
+        telaLogin.style.display = "none";
+        painel.style.display = "block";
+        atualizarResumo();
+        mostrarTelaInicio();
+    } else {
+        telaLogin.style.display = "flex";
+        painel.style.display = "none";
+    }
+}
+
+document.getElementById("formLoginAdmin")?.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const emailDigitado = document.getElementById("emailAdmin").value.trim().toLowerCase();
+    const senhaDigitada = document.getElementById("senhaAdmin").value;
+    const erroBox = document.getElementById("erroLoginAdmin");
+
+    const credenciais = obterCredenciaisAdmin();
+
+    if (emailDigitado === credenciais.email.toLowerCase() && senhaDigitada === credenciais.senha) {
+        erroBox.style.display = "none";
+        sessionStorage.setItem("schoolcontrol_admin_logado", "true");
+        verificarSessaoAdmin();
+    } else {
+        erroBox.style.display = "block";
+    }
+});
+
+function sairDoPainel() {
+    sessionStorage.removeItem("schoolcontrol_admin_logado");
+    document.getElementById("senhaAdmin").value = "";
+    verificarSessaoAdmin();
+}
+
+function abrirPaginaQrCode() {
+    const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
+    window.open(`${urlBase}/qrcode.html`, "_blank");
+}
 
 
 // ==========================================
@@ -11,42 +70,20 @@ let alunos = [];
 let movimentacoes = [];
 
 try {
-    alunos = JSON.parse(
-        localStorage.getItem("schoolcontrol_alunos")
-    ) || [];
-
-    movimentacoes = JSON.parse(
-        localStorage.getItem("schoolcontrol_movimentacoes")
-    ) || [];
-
+    alunos = JSON.parse(localStorage.getItem("schoolcontrol_alunos")) || [];
+    movimentacoes = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes")) || [];
 } catch (erro) {
     alunos = [];
     movimentacoes = [];
 }
 
-
-// ==========================================
-// 2. SALVAR DADOS
-// ==========================================
-
 function salvarAlunos() {
-    localStorage.setItem(
-        "schoolcontrol_alunos",
-        JSON.stringify(alunos)
-    );
+    localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunos));
 }
 
 function salvarMovimentacoes() {
-    localStorage.setItem(
-        "schoolcontrol_movimentacoes",
-        JSON.stringify(movimentacoes)
-    );
+    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(movimentacoes));
 }
-
-
-// ==========================================
-// 3. PROTEGER TEXTOS
-// ==========================================
 
 function escaparHTML(texto) {
     return String(texto ?? "").replace(/[&<>"']/g, letra => ({
@@ -58,24 +95,17 @@ function escaparHTML(texto) {
     })[letra]);
 }
 
-
-// ==========================================
-// 4. DATA LOCAL
-// ==========================================
-
 function dataDeHoje() {
     const agora = new Date();
-
     const ano = agora.getFullYear();
     const mes = String(agora.getMonth() + 1).padStart(2, "0");
     const dia = String(agora.getDate()).padStart(2, "0");
-
     return `${ano}-${mes}-${dia}`;
 }
 
 
 // ==========================================
-// 5. ATUALIZAR CONTADORES
+// 2. ATUALIZAR CONTADORES
 // ==========================================
 
 function atualizarResumo() {
@@ -84,64 +114,32 @@ function atualizarResumo() {
     const totalSaidas = document.getElementById("totalSaidas");
 
     const hoje = dataDeHoje();
+    const registrosHoje = movimentacoes.filter(item => item.dia === hoje);
 
-    const registrosHoje = movimentacoes.filter(
-        item => item.dia === hoje
-    );
-
-    if (totalAlunos) {
-        totalAlunos.textContent = alunos.length;
-    }
-
-    if (totalEntradas) {
-        totalEntradas.textContent = registrosHoje.filter(
-            item => item.tipo === "Entrada"
-        ).length;
-    }
-
-    if (totalSaidas) {
-        totalSaidas.textContent = registrosHoje.filter(
-            item => item.tipo === "Saída"
-        ).length;
-    }
+    if (totalAlunos) totalAlunos.textContent = alunos.length;
+    if (totalEntradas) totalEntradas.textContent = registrosHoje.filter(item => item.tipo === "Entrada").length;
+    if (totalSaidas) totalSaidas.textContent = registrosHoje.filter(item => item.tipo === "Saída").length;
 }
 
 
 // ==========================================
-// 6. NAVEGAÇÃO
+// 3. NAVEGAÇÃO
 // ==========================================
 
 function abrirTela(tela) {
     const area = document.getElementById("areaConteudo");
-
     if (!area) return;
 
-    if (tela === "inicio") {
-
-        mostrarTelaInicio();
-
-    } else if (tela === "alunos") {
-
-        mostrarTelaAlunos();
-
-    } else if (tela === "entrada") {
-
-        mostrarTelaMovimentacao();
-
-    } else if (tela === "historico") {
-
-        mostrarHistorico();
-
-    } else if (tela === "relatorios") {
-
-        mostrarRelatorios();
-
-    }
+    if (tela === "inicio") mostrarTelaInicio();
+    else if (tela === "alunos") mostrarTelaAlunos();
+    else if (tela === "entrada") mostrarTelaMovimentacao();
+    else if (tela === "historico") mostrarHistorico();
+    else if (tela === "relatorios") mostrarRelatorios();
 }
 
 
 // ==========================================
-// 6.1 TELA INICIAL E CONFIGURAÇÃO DO QR CODE OFICIAL
+// 4. TELA INICIAL (QR CODE OFICIAL + ACESSO ADMIN)
 // ==========================================
 
 function mostrarTelaInicio() {
@@ -149,58 +147,98 @@ function mostrarTelaInicio() {
     if (!area) return;
 
     const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
+    const credenciais = obterCredenciaisAdmin();
 
     area.innerHTML = `
         <h2>Bem-vindo ao SchoolControl!</h2>
-        <p>Este é o painel principal do sistema escolar.</p>
+        <p>Gerencie o QR Code da portaria, alunos e registros de acesso.</p>
 
-        <div class="painel-movimentacao" style="margin-top: 24px;">
+        <div class="painel-movimentacao" style="margin-top: 20px;">
             <h3>QR Code Oficial da Escola</h3>
             <p>
-                Cole abaixo o código ou texto exato contido no QR Code oficial da portaria.
-                Apenas este QR Code será aceito pelo leitor para liberar a entrada.
+                Gere ou cole o link oficial do QR Code da portaria.
+                Use o botão verde no topo para abrir a tela do QR Code em outra aba.
             </p>
 
             <form id="formQrOficial" style="margin-top: 14px;">
-                <label for="inputQrOficial">Código / Conteúdo do QR Code Oficial</label>
+                <label for="inputQrOficial">Link / Conteúdo do QR Code Oficial</label>
                 <input
                     type="text"
                     id="inputQrOficial"
                     value="${escaparHTML(codigoAtual)}"
-                    placeholder="Cole aqui o texto ou link do QR Code oficial"
+                    placeholder="Clique em Gerar Link Oficial do QR Code"
                     required
                 >
 
                 <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <button type="button" onclick="gerarCodigoAleatorioQR()">
+                        Gerar Novo QR Code
+                    </button>
+
                     <button type="submit">
                         Salvar QR Code Oficial
                     </button>
 
-                    <button type="button" onclick="gerarCodigoAleatorioQR()">
-                        Gerar Código Seguro Automático
+                    <button type="button" onclick="abrirPaginaQrCode()">
+                        Ir para Tela do QR Code ↗
                     </button>
                 </div>
             </form>
 
             <p id="statusQrOficial" style="margin-top: 12px; font-weight: bold; color: #60a5fa;">
-                ${codigoAtual ? "✓ QR Code oficial configurado e ativo no leitor." : "⚠ Nenhum QR Code oficial configurado ainda."}
+                ${codigoAtual ? "✓ QR Code oficial configurado e ativo." : "⚠ Usando QR Code padrão até você salvar um novo."}
             </p>
+        </div>
+
+        <div class="painel-movimentacao" style="margin-top: 24px;">
+            <h3>Segurança do Administrador</h3>
+            <p>Altere o e-mail e a senha de acesso a este painel administrativo.</p>
+
+            <form id="formAlterarCredenciais" style="margin-top: 14px;">
+                <label for="novoEmailAdmin">E-mail de acesso</label>
+                <input
+                    type="email"
+                    id="novoEmailAdmin"
+                    value="${escaparHTML(credenciais.email)}"
+                    required
+                >
+
+                <label for="novaSenhaAdmin">Nova senha</label>
+                <input
+                    type="password"
+                    id="novaSenhaAdmin"
+                    value="${escaparHTML(credenciais.senha)}"
+                    minlength="4"
+                    required
+                >
+
+                <button type="submit" style="margin-top: 10px;">
+                    Atualizar Login Administrativo
+                </button>
+            </form>
         </div>
     `;
 
-    document.getElementById("formQrOficial").addEventListener("submit", function(event) {
+    document.getElementById("formQrOficial").addEventListener("submit", function (event) {
         event.preventDefault();
         const valor = document.getElementById("inputQrOficial").value.trim();
-
-        if (!valor) {
-            alert("Digite ou cole um código válido para o QR Code oficial.");
-            return;
-        }
+        if (!valor) return;
 
         localStorage.setItem("schoolcontrol_qr_oficial", valor);
         document.getElementById("statusQrOficial").textContent =
-            "✓ QR Code oficial salvo com sucesso! Apenas ele liberará a entrada.";
+            "✓ QR Code oficial salvo com sucesso!";
         alert("QR Code oficial atualizado!");
+    });
+
+    document.getElementById("formAlterarCredenciais").addEventListener("submit", function (event) {
+        event.preventDefault();
+        const email = document.getElementById("novoEmailAdmin").value.trim();
+        const senha = document.getElementById("novaSenhaAdmin").value;
+
+        if (!email || !senha) return;
+
+        localStorage.setItem("schoolcontrol_admin_credenciais", JSON.stringify({ email, senha }));
+        alert("E-mail e senha do administrador atualizados com sucesso!");
     });
 }
 
@@ -208,12 +246,14 @@ function gerarCodigoAleatorioQR() {
     const campo = document.getElementById("inputQrOficial");
     if (!campo) return;
 
-    campo.value = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
+    const chaveSecreta = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
+    const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
+    campo.value = `${urlBase}/qrcode.html?chave=${chaveSecreta}`;
 }
 
 
 // ==========================================
-// 7. TELA DE ALUNOS
+// 5. TELA DE ALUNOS
 // ==========================================
 
 function mostrarTelaAlunos() {
@@ -224,54 +264,25 @@ function mostrarTelaAlunos() {
         <p>Cadastre e consulte os alunos.</p>
 
         <form id="formAluno">
-
             <label>Nome do aluno</label>
-            <input
-                type="text"
-                id="nomeAluno"
-                placeholder="Digite o nome"
-                required
-            >
+            <input type="text" id="nomeAluno" placeholder="Digite o nome" required>
 
             <label>Turma</label>
-            <input
-                type="text"
-                id="turmaAluno"
-                placeholder="Ex: 8º ano A"
-                required
-            >
+            <input type="text" id="turmaAluno" placeholder="Ex: 8º ano A" required>
 
             <label>Matrícula</label>
-            <input
-                type="text"
-                id="matriculaAluno"
-                placeholder="Digite uma matrícula fictícia"
-                required
-            >
+            <input type="text" id="matriculaAluno" placeholder="Digite uma matrícula" required>
 
-            <button type="submit">
-                Cadastrar aluno
-            </button>
-
+            <button type="submit">Cadastrar aluno</button>
         </form>
 
         <h3>Alunos cadastrados</h3>
-
         <div id="listaAlunos"></div>
     `;
 
-    document.getElementById("formAluno").addEventListener(
-        "submit",
-        cadastrarAluno
-    );
-
+    document.getElementById("formAluno").addEventListener("submit", cadastrarAluno);
     atualizarListaAlunos();
 }
-
-
-// ==========================================
-// 8. CADASTRAR ALUNO
-// ==========================================
 
 function cadastrarAluno(event) {
     event.preventDefault();
@@ -285,11 +296,7 @@ function cadastrarAluno(event) {
         return;
     }
 
-    const existe = alunos.some(
-        aluno => aluno.matricula === matricula
-    );
-
-    if (existe) {
+    if (alunos.some(aluno => aluno.matricula === matricula)) {
         alert("Essa matrícula já está cadastrada.");
         return;
     }
@@ -304,18 +311,11 @@ function cadastrarAluno(event) {
     salvarAlunos();
     atualizarResumo();
     mostrarTelaAlunos();
-
     alert("Aluno cadastrado com sucesso!");
 }
 
-
-// ==========================================
-// 9. LISTAR ALUNOS
-// ==========================================
-
 function atualizarListaAlunos() {
     const lista = document.getElementById("listaAlunos");
-
     if (!lista) return;
 
     if (alunos.length === 0) {
@@ -325,20 +325,16 @@ function atualizarListaAlunos() {
 
     lista.innerHTML = alunos.map(aluno => `
         <div class="aluno-item">
-
             <strong>${escaparHTML(aluno.nome)}</strong>
-
             <p>Turma: ${escaparHTML(aluno.turma)}</p>
-
             <p>Matrícula: ${escaparHTML(aluno.matricula)}</p>
-
         </div>
     `).join("");
 }
 
 
 // ==========================================
-// 10. TELA DE ENTRADA E SAÍDA
+// 6. TELA DE ENTRADA E SAÍDA MANUAL
 // ==========================================
 
 function mostrarTelaMovimentacao() {
@@ -352,179 +348,92 @@ function mostrarTelaMovimentacao() {
 
     area.innerHTML = `
         <div class="cabecalho-movimentacao">
-
             <h2>Controle de Entrada e Saída</h2>
-
-            <p>Selecione um aluno para registrar sua movimentação.</p>
-
+            <p>Selecione um aluno para registrar sua movimentação manualmente.</p>
         </div>
 
         <div class="painel-movimentacao">
-
             <form id="formMovimentacao" class="form-movimentacao">
-
                 <div class="campo-aluno">
-
-                    <label for="alunoMovimentacao">
-                        Selecionar aluno
-                    </label>
-
+                    <label for="alunoMovimentacao">Selecionar aluno</label>
                     <select id="alunoMovimentacao" required>
-
-                        <option value="">
-                            Escolha um aluno
-                        </option>
-
+                        <option value="">Escolha um aluno</option>
                         ${opcoes}
-
                     </select>
-
                 </div>
 
                 <div class="botoes-movimentacao">
-
-                    <button
-                        type="submit"
-                        name="tipo"
-                        value="Entrada"
-                        class="botao-entrada"
-                        ${alunos.length === 0 ? "disabled" : ""}
-                    >
+                    <button type="submit" name="tipo" value="Entrada" class="botao-entrada" ${alunos.length === 0 ? "disabled" : ""}>
                         Registrar Entrada
                     </button>
-
-                    <button
-                        type="submit"
-                        name="tipo"
-                        value="Saída"
-                        class="botao-saida"
-                        ${alunos.length === 0 ? "disabled" : ""}
-                    >
+                    <button type="submit" name="tipo" value="Saída" class="botao-saida" ${alunos.length === 0 ? "disabled" : ""}>
                         Registrar Saída
                     </button>
-
                 </div>
-
             </form>
-
-            ${alunos.length === 0 ? `
-                <p class="aviso-alunos">
-                    Cadastre um aluno antes de registrar uma movimentação.
-                </p>
-            ` : ""}
-
         </div>
 
         <div class="area-recentes">
-
             <h3>Movimentações Recentes</h3>
-
             <div id="movimentacoesRecentes"></div>
-
         </div>
     `;
 
-    const formulario = document.getElementById("formMovimentacao");
-
-    formulario.addEventListener(
-        "submit",
-        registrarMovimentacao
-    );
-
+    document.getElementById("formMovimentacao").addEventListener("submit", registrarMovimentacao);
     mostrarMovimentacoesRecentes();
 }
 
-
-// ==========================================
-// 11. REGISTRAR MOVIMENTAÇÃO
-// ==========================================
-
 function registrarMovimentacao(event) {
     event.preventDefault();
-
     const tipo = event.submitter?.value;
+    const alunoId = document.getElementById("alunoMovimentacao").value;
+    const aluno = alunos.find(item => item.id === alunoId);
 
-    const alunoId = document.getElementById(
-        "alunoMovimentacao"
-    ).value;
-
-    const aluno = alunos.find(
-        item => item.id === alunoId
-    );
-
-    if (!aluno) {
+    if (!aluno || (tipo !== "Entrada" && tipo !== "Saída")) {
         alert("Selecione um aluno válido.");
         return;
     }
 
-    if (tipo !== "Entrada" && tipo !== "Saída") {
-        alert("Tipo de movimentação inválido.");
-        return;
-    }
-
     const agora = new Date();
-
     movimentacoes.unshift({
         id: crypto.randomUUID(),
         alunoId: aluno.id,
         nome: aluno.nome,
         turma: aluno.turma,
-        tipo: tipo,
+        tipo,
         dataHora: agora.toISOString(),
         dia: dataDeHoje()
     });
 
     salvarMovimentacoes();
-
     atualizarResumo();
-
     mostrarTelaMovimentacao();
-
     alert(`${tipo} registrada com sucesso!`);
 }
 
-
-// ==========================================
-// 12. MOVIMENTAÇÕES RECENTES
-// ==========================================
-
 function mostrarMovimentacoesRecentes() {
-    const lista = document.getElementById(
-        "movimentacoesRecentes"
-    );
-
+    const lista = document.getElementById("movimentacoesRecentes");
     if (!lista) return;
 
     const recentes = movimentacoes.slice(0, 10);
-
     if (recentes.length === 0) {
-        lista.innerHTML = `
-            <p>Nenhuma movimentação registrada.</p>
-        `;
+        lista.innerHTML = "<p>Nenhuma movimentação registrada.</p>";
         return;
     }
 
     lista.innerHTML = recentes.map(item => `
         <div class="aluno-item">
-
             <strong>${escaparHTML(item.nome)}</strong>
-
             <p>Turma: ${escaparHTML(item.turma)}</p>
-
             <p>Tipo: ${escaparHTML(item.tipo)}</p>
-
-            <p>
-                Data e horário:
-                ${new Date(item.dataHora).toLocaleString("pt-BR")}
-            </p>
-
+            <p>Data e horário: ${new Date(item.dataHora).toLocaleString("pt-BR")}</p>
         </div>
     `).join("");
 }
 
 
 // ==========================================
-// 13. TELA DE HISTÓRICO
+// 7. HISTÓRICO E RELATÓRIOS
 // ==========================================
 
 function mostrarHistorico() {
@@ -532,62 +441,28 @@ function mostrarHistorico() {
 
     area.innerHTML = `
         <div class="cabecalho-historico">
-
             <h2>Histórico de Movimentações</h2>
-
             <p>Consulte todas as entradas e saídas dos alunos.</p>
-
         </div>
 
         <div class="painel-historico">
-
             <div class="topo-historico">
-
                 <h3>Registros realizados</h3>
-
-                <span class="total-registros" id="totalHistorico">
-                    ${movimentacoes.length} registros
-                </span>
-
+                <span class="total-registros" id="totalHistorico">${movimentacoes.length} registros</span>
             </div>
 
-            <input
-                type="text"
-                id="pesquisaHistorico"
-                placeholder="Pesquisar aluno pelo nome..."
-                oninput="filtrarHistorico()"
-            >
+            <input type="text" id="pesquisaHistorico" placeholder="Pesquisar aluno pelo nome..." oninput="filtrarHistorico()">
 
-            <select
-                id="filtroTipoHistorico"
-                onchange="filtrarHistorico()"
-            >
-
-                <option value="">
-                    Todas as movimentações
-                </option>
-
-                <option value="Entrada">
-                    Somente entradas
-                </option>
-
-                <option value="Saída">
-                    Somente saídas
-                </option>
-
+            <select id="filtroTipoHistorico" onchange="filtrarHistorico()">
+                <option value="">Todas as movimentações</option>
+                <option value="Entrada">Somente entradas</option>
+                <option value="Saída">Somente saídas</option>
             </select>
 
-            <button
-                type="button"
-                onclick="limparHistorico()"
-            >
-                Limpar histórico
-            </button>
+            <button type="button" onclick="limparHistorico()">Limpar histórico</button>
 
             <div class="tabela-responsiva">
-
                 <table class="tabela-historico">
-
                     <thead>
                         <tr>
                             <th>Aluno</th>
@@ -596,369 +471,144 @@ function mostrarHistorico() {
                             <th>Data e horário</th>
                         </tr>
                     </thead>
-
                     <tbody id="corpoHistorico"></tbody>
-
                 </table>
-
             </div>
-
         </div>
     `;
 
     filtrarHistorico();
 }
 
-
-// ==========================================
-// 14. FILTRAR HISTÓRICO
-// ==========================================
-
 function filtrarHistorico() {
-    const campoPesquisa = document.getElementById(
-        "pesquisaHistorico"
-    );
-
-    const campoTipo = document.getElementById(
-        "filtroTipoHistorico"
-    );
-
+    const campoPesquisa = document.getElementById("pesquisaHistorico");
+    const campoTipo = document.getElementById("filtroTipoHistorico");
     const corpo = document.getElementById("corpoHistorico");
     const total = document.getElementById("totalHistorico");
 
-    if (!campoPesquisa || !campoTipo || !corpo || !total) {
-        return;
-    }
+    if (!campoPesquisa || !campoTipo || !corpo || !total) return;
 
     const pesquisa = campoPesquisa.value.toLowerCase().trim();
-
     const tipo = campoTipo.value;
 
     const filtradas = movimentacoes.filter(item => {
-
         const nomeCombina = item.nome.toLowerCase().includes(pesquisa);
-
         const tipoCombina = tipo === "" || item.tipo === tipo;
-
         return nomeCombina && tipoCombina;
-
     });
 
     total.textContent = `${filtradas.length} registros`;
 
     if (filtradas.length === 0) {
-
-        corpo.innerHTML = `
-            <tr>
-                <td colspan="4" class="historico-vazio">
-                    Nenhuma movimentação encontrada.
-                </td>
-            </tr>
-        `;
-
+        corpo.innerHTML = `<tr><td colspan="4" class="historico-vazio">Nenhuma movimentação encontrada.</td></tr>`;
         return;
     }
 
     corpo.innerHTML = filtradas.map(item => `
         <tr>
-
             <td>${escaparHTML(item.nome)}</td>
-
             <td>${escaparHTML(item.turma)}</td>
-
             <td>
-                <span class="status-movimentacao ${
-                    item.tipo === "Entrada"
-                        ? "status-entrada"
-                        : "status-saida"
-                }">
+                <span class="status-movimentacao ${item.tipo === "Entrada" ? "status-entrada" : "status-saida"}">
                     ${escaparHTML(item.tipo)}
                 </span>
             </td>
-
-            <td>
-                ${new Date(item.dataHora).toLocaleString("pt-BR")}
-            </td>
-
+            <td>${new Date(item.dataHora).toLocaleString("pt-BR")}</td>
         </tr>
     `).join("");
 }
-
-
-// ==========================================
-// 15. LIMPAR HISTÓRICO
-// ==========================================
 
 function limparHistorico() {
     if (movimentacoes.length === 0) {
         alert("O histórico já está vazio.");
         return;
     }
-
-    const confirmar = confirm(
-        "Tem certeza que deseja apagar todo o histórico de movimentações? Essa ação não poderá ser desfeita."
-    );
-
-    if (!confirmar) {
-        return;
-    }
+    if (!confirm("Tem certeza que deseja apagar todo o histórico?")) return;
 
     movimentacoes = [];
-
     salvarMovimentacoes();
-
     filtrarHistorico();
-
-    mostrarMovimentacoesRecentes();
-
     atualizarResumo();
-
     alert("Histórico apagado com sucesso!");
 }
 
-
-// ==========================================
-// 16. TELA DE RELATÓRIOS
-// ==========================================
-
 function mostrarRelatorios() {
     const area = document.getElementById("areaConteudo");
-
     const hoje = dataDeHoje();
-
-    const registrosHoje = movimentacoes.filter(
-        item => item.dia === hoje
-    );
-
-    const entradasHoje = registrosHoje.filter(
-        item => item.tipo === "Entrada"
-    ).length;
-
-    const saidasHoje = registrosHoje.filter(
-        item => item.tipo === "Saída"
-    ).length;
+    const registrosHoje = movimentacoes.filter(item => item.dia === hoje);
+    const entradasHoje = registrosHoje.filter(item => item.tipo === "Entrada").length;
+    const saidasHoje = registrosHoje.filter(item => item.tipo === "Saída").length;
 
     area.innerHTML = `
         <div class="cabecalho-relatorios">
-
             <h2>Relatórios Escolares</h2>
-
             <p>Consulte e exporte as movimentações do SchoolControl.</p>
-
         </div>
 
         <div class="painel-relatorios">
-
             <div class="cartoes-relatorios">
-
-                <div class="cartao-relatorio">
-                    <h3>Alunos cadastrados</h3>
-                    <strong>${alunos.length}</strong>
-                </div>
-
-                <div class="cartao-relatorio">
-                    <h3>Entradas de hoje</h3>
-                    <strong>${entradasHoje}</strong>
-                </div>
-
-                <div class="cartao-relatorio">
-                    <h3>Saídas de hoje</h3>
-                    <strong>${saidasHoje}</strong>
-                </div>
-
-                <div class="cartao-relatorio">
-                    <h3>Total de movimentações</h3>
-                    <strong>${movimentacoes.length}</strong>
-                </div>
-
+                <div class="cartao-relatorio"><h3>Alunos cadastrados</h3><strong>${alunos.length}</strong></div>
+                <div class="cartao-relatorio"><h3>Entradas de hoje</h3><strong>${entradasHoje}</strong></div>
+                <div class="cartao-relatorio"><h3>Saídas de hoje</h3><strong>${saidasHoje}</strong></div>
+                <div class="cartao-relatorio"><h3>Total de movimentações</h3><strong>${movimentacoes.length}</strong></div>
             </div>
 
             <div class="filtros-relatorio">
-
                 <h3>Filtrar por período</h3>
-
-                <label for="dataInicialRelatorio">
-                    Data inicial
-                </label>
-
-                <input
-                    type="date"
-                    id="dataInicialRelatorio"
-                >
-
-                <label for="dataFinalRelatorio">
-                    Data final
-                </label>
-
-                <input
-                    type="date"
-                    id="dataFinalRelatorio"
-                >
+                <label for="dataInicialRelatorio">Data inicial</label>
+                <input type="date" id="dataInicialRelatorio">
+                <label for="dataFinalRelatorio">Data final</label>
+                <input type="date" id="dataFinalRelatorio">
 
                 <div class="botoes-relatorio">
-
-                    <button
-                        type="button"
-                        onclick="aplicarFiltrosRelatorio()"
-                    >
-                        Filtrar
-                    </button>
-
-                    <button
-                        type="button"
-                        onclick="limparFiltrosRelatorio()"
-                    >
-                        Limpar filtros
-                    </button>
-
-                    <button
-                        type="button"
-                        onclick="exportarRelatorioCSV()"
-                    >
-                        Exportar relatório CSV
-                    </button>
-
+                    <button type="button" onclick="aplicarFiltrosRelatorio()">Filtrar</button>
+                    <button type="button" onclick="limparFiltrosRelatorio()">Limpar filtros</button>
+                    <button type="button" onclick="exportarRelatorioCSV()">Exportar relatório CSV</button>
                 </div>
-
             </div>
 
-            <div
-                id="resultadoFiltroRelatorio"
-                class="resultado-relatorio"
-            >
-                <p>
-                    Selecione as datas para consultar as movimentações.
-                </p>
+            <div id="resultadoFiltroRelatorio" class="resultado-relatorio">
+                <p>Selecione as datas para consultar as movimentações.</p>
             </div>
-
         </div>
     `;
 }
 
-
-// ==========================================
-// 17. APLICAR FILTROS DOS RELATÓRIOS
-// ==========================================
-
 function aplicarFiltrosRelatorio() {
-    const inicial = document.getElementById(
-        "dataInicialRelatorio"
-    ).value;
+    const inicial = document.getElementById("dataInicialRelatorio").value;
+    const final = document.getElementById("dataFinalRelatorio").value;
+    const resultado = document.getElementById("resultadoFiltroRelatorio");
 
-    const final = document.getElementById(
-        "dataFinalRelatorio"
-    ).value;
-
-    const resultado = document.getElementById(
-        "resultadoFiltroRelatorio"
-    );
-
-    if (!inicial || !final) {
-        alert("Preencha a data inicial e a data final.");
+    if (!inicial || !final || inicial > final) {
+        alert("Verifique as datas informadas.");
         return;
     }
 
-    if (inicial > final) {
-        alert("A data inicial não pode ser posterior à data final.");
-        return;
-    }
-
-    const filtradas = movimentacoes.filter(item =>
-        item.dia >= inicial && item.dia <= final
-    );
-
-    const entradas = filtradas.filter(
-        item => item.tipo === "Entrada"
-    ).length;
-
-    const saidas = filtradas.filter(
-        item => item.tipo === "Saída"
-    ).length;
+    const filtradas = movimentacoes.filter(item => item.dia >= inicial && item.dia <= final);
+    const entradas = filtradas.filter(item => item.tipo === "Entrada").length;
+    const saidas = filtradas.filter(item => item.tipo === "Saída").length;
 
     resultado.innerHTML = `
         <h3>Resultado do período</h3>
-
-        <p>
-            Movimentações encontradas:
-            <strong>${filtradas.length}</strong>
-        </p>
-
-        <p>
-            Entradas:
-            <strong>${entradas}</strong>
-        </p>
-
-        <p>
-            Saídas:
-            <strong>${saidas}</strong>
-        </p>
+        <p>Movimentações encontradas: <strong>${filtradas.length}</strong></p>
+        <p>Entradas: <strong>${entradas}</strong></p>
+        <p>Saídas: <strong>${saidas}</strong></p>
     `;
 }
-
-
-// ==========================================
-// 18. LIMPAR FILTROS DOS RELATÓRIOS
-// ==========================================
 
 function limparFiltrosRelatorio() {
-    const inicial = document.getElementById(
-        "dataInicialRelatorio"
-    );
-
-    const final = document.getElementById(
-        "dataFinalRelatorio"
-    );
-
-    const resultado = document.getElementById(
-        "resultadoFiltroRelatorio"
-    );
-
-    if (!inicial || !final || !resultado) {
-        return;
-    }
-
-    inicial.value = "";
-    final.value = "";
-
-    resultado.innerHTML = `
-        <p>
-            Selecione as datas para consultar as movimentações.
-        </p>
-    `;
+    document.getElementById("dataInicialRelatorio").value = "";
+    document.getElementById("dataFinalRelatorio").value = "";
+    document.getElementById("resultadoFiltroRelatorio").innerHTML = "<p>Selecione as datas para consultar as movimentações.</p>";
 }
 
-
-// ==========================================
-// 19. EXPORTAR RELATÓRIO CSV
-// ==========================================
-
 function exportarRelatorioCSV() {
-    const inicial = document.getElementById(
-        "dataInicialRelatorio"
-    )?.value || "";
-
-    const final = document.getElementById(
-        "dataFinalRelatorio"
-    )?.value || "";
-
-    if ((inicial && !final) || (!inicial && final)) {
-        alert("Preencha as duas datas ou deixe ambas vazias.");
-        return;
-    }
-
-    if (inicial && final && inicial > final) {
-        alert("A data inicial não pode ser posterior à data final.");
-        return;
-    }
+    const inicial = document.getElementById("dataInicialRelatorio")?.value || "";
+    const final = document.getElementById("dataFinalRelatorio")?.value || "";
 
     const registros = movimentacoes.filter(item => {
-
-        if (!inicial && !final) {
-            return true;
-        }
-
+        if (!inicial && !final) return true;
         return item.dia >= inicial && item.dia <= final;
-
     });
 
     if (registros.length === 0) {
@@ -966,12 +616,9 @@ function exportarRelatorioCSV() {
         return;
     }
 
-    const escaparCSV = valor =>
-        `"${String(valor ?? "").replace(/"/g, '""')}"`;
-
+    const escaparCSV = valor => `"${String(valor ?? "").replace(/"/g, '""')}"`;
     const linhas = [
         ["Aluno", "Turma", "Movimentação", "Data e horário"],
-
         ...registros.map(item => [
             item.nome,
             item.turma,
@@ -980,42 +627,20 @@ function exportarRelatorioCSV() {
         ])
     ];
 
-    const csv = "\uFEFF" + linhas
-        .map(linha =>
-            linha.map(escaparCSV).join(";")
-        )
-        .join("\n");
-
-    const arquivo = new Blob(
-        [csv],
-        { type: "text/csv;charset=utf-8;" }
-    );
-
+    const csv = "\uFEFF" + linhas.map(l => l.map(escaparCSV).join(";")).join("\n");
+    const arquivo = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(arquivo);
-
     const link = document.createElement("a");
-
     link.href = url;
-
     link.download = "relatorio-schoolcontrol.csv";
-
     document.body.appendChild(link);
-
     link.click();
-
     link.remove();
-
-    setTimeout(() => {
-        URL.revokeObjectURL(url);
-    }, 1000);
-
-    alert("Relatório exportado com sucesso!");
 }
 
 
 // ==========================================
-// 20. INICIALIZAÇÃO
+// 8. INICIALIZAÇÃO
 // ==========================================
 
-atualizarResumo();
-mostrarTelaInicio();
+verificarSessaoAdmin();

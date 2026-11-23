@@ -1,57 +1,177 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SchoolControl | Painel Escolar</title>
+    <title>SchoolControl | Painel Administrativo</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos da Tela de Login Administrativo */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: #080d18;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+        .login-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+        .login-card h2 {
+            color: #f8fafc;
+            margin-bottom: 6px;
+            font-size: 24px;
+        }
+        .login-card p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .login-card label {
+            display: block;
+            color: #cbd5e1;
+            font-size: 13px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .login-card input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #080d18;
+            color: #f8fafc;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .login-card button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .login-card button:hover {
+            background: #1d4ed8;
+        }
+        .erro-login {
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 14px;
+            display: none;
+        }
+        .acoes-topo {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .btn-qr-atalho {
+            background: #10b981 !important;
+            color: #042f2e !important;
+            font-weight: bold;
+        }
+        .btn-sair-admin {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+        }
+    </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h2>SchoolControl</h2>
+    <!-- TELA DE LOGIN ADMINISTRATIVO -->
+    <div id="telaLoginAdmin" class="login-overlay">
+        <div class="login-card">
+            <h2>School<span style="color: #3b82f6;">Control</span></h2>
+            <p>Acesso restrito à administração escolar.</p>
 
-        <nav>
+            <div id="erroLoginAdmin" class="erro-login">
+                E-mail ou senha incorretos.
+            </div>
+
+            <form id="formLoginAdmin">
+                <label for="emailAdmin">E-mail do Administrador</label>
+                <input
+                    type="email"
+                    id="emailAdmin"
+                    placeholder="admin@escola.com"
+                    required
+                >
+
+                <label for="senhaAdmin">Senha</label>
+                <input
+                    type="password"
+                    id="senhaAdmin"
+                    placeholder="••••••••"
+                    required
+                >
+
+                <button type="submit">Entrar no Painel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PAINEL PRINCIPAL (OCULTO ATÉ FAZER LOGIN) -->
+    <div id="painelAdminPrincipal" style="display: none;">
+        <header class="topo">
+            <div>
+                <h1>School<span>Control</span></h1>
+                <p>Painel Administrativo Escolar</p>
+            </div>
+
+            <div class="acoes-topo">
+                <button type="button" class="btn-qr-atalho" onclick="abrirPaginaQrCode()">
+                    Abrir Tela do QR Code ↗
+                </button>
+                <button type="button" class="btn-sair-admin" onclick="sairDoPainel()">
+                    Sair
+                </button>
+            </div>
+        </header>
+
+        <nav class="menu">
             <button onclick="abrirTela('inicio')">Início</button>
             <button onclick="abrirTela('alunos')">Alunos</button>
-            <button onclick="abrirTela('entrada')">Entrada e saída</button>
+            <button onclick="abrirTela('entrada')">Entrada / Saída</button>
             <button onclick="abrirTela('historico')">Histórico</button>
             <button onclick="abrirTela('relatorios')">Relatórios</button>
         </nav>
-    </div>
-
-    <main class="conteudo">
-        <header>
-            <h1>Painel Administrativo</h1>
-            <p>Bem-vindo ao SchoolControl!</p>
-        </header>
 
         <section class="resumo">
             <div class="card">
-                <h3>Alunos cadastrados</h3>
-                <p id="totalAlunos">0</p>
+                <h3>Total de Alunos</h3>
+                <strong id="totalAlunos">0</strong>
             </div>
-
             <div class="card">
-                <h3>Entradas hoje</h3>
-                <p id="totalEntradas">0</p>
+                <h3>Entradas Hoje</h3>
+                <strong id="totalEntradas">0</strong>
             </div>
-
             <div class="card">
-                <h3>Saídas hoje</h3>
-                <p id="totalSaidas">0</p>
+                <h3>Saídas Hoje</h3>
+                <strong id="totalSaidas">0</strong>
             </div>
         </section>
 
-        <section id="areaConteudo">
-            <h2>Bem-vindo!</h2>
-            <p>Selecione uma opção no menu lateral.</p>
-        </section>
-    </main>
+        <main id="areaConteudo" class="conteudo"></main>
+    </div>
 
- <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="script.js"></script>
-    <script src="qrcode.js"></script>
 </body>
 </html>
