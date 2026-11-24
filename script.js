@@ -1,9 +1,9 @@
 // ==========================================
-// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL
+// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL (MODAL CENTRALIZADO)
 // ==========================================
 
-const EMAIL_PADRAO = "samuel.silva75567@aluno.seduc.pa.gov.br";
-const SENHA_PADRAO = "ScH@94mK#2026pL";
+const EMAIL_PADRAO = "admin@escola.com";
+const SENHA_PADRAO = "admin123";
 
 let telaAtualAdmin = "inicio";
 
@@ -16,7 +16,7 @@ function obterCredenciaisAdmin() {
 }
 
 // ==========================================
-// COMPONENTES VISUAIS PERSONALIZADOS (CANTO INFERIOR DIREITO)
+// COMPONENTES VISUAIS PERSONALIZADOS (MEIO DA TELA)
 // ==========================================
 
 function confirmarAcaoSchoolControl({
@@ -26,61 +26,71 @@ function confirmarAcaoSchoolControl({
     textoCancelar = "Cancelar"
 }) {
     return new Promise(resolve => {
-        const anterior = document.getElementById("scToastConfirmacao");
+        const anterior = document.getElementById("scModalConfirmacao");
         if (anterior) anterior.remove();
 
-        const container = document.createElement("div");
-        container.id = "scToastConfirmacao";
-        container.style.cssText = `
+        const overlay = document.createElement("div");
+        overlay.id = "scModalConfirmacao";
+        overlay.style.cssText = `
             position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 390px;
-            max-width: calc(100vw - 32px);
-            background: linear-gradient(145deg, #0b1324, #080d18);
-            border: 1px solid #1e3a5f;
-            border-left: 4px solid #ef4444;
-            border-radius: 14px;
-            padding: 20px 22px;
-            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65);
-            color: #f8fafc;
-            font-family: inherit;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
             z-index: 99999;
             opacity: 0;
-            transform: translateY(14px);
-            transition: opacity 0.22s ease, transform 0.22s ease;
+            transition: opacity 0.2s ease;
         `;
 
-        container.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;">
+        const caixa = document.createElement("div");
+        caixa.style.cssText = `
+            width: 440px;
+            max-width: 100%;
+            background: linear-gradient(145deg, #0b1324, #080d18);
+            border: 1px solid #1e3a5f;
+            border-top: 4px solid #ef4444;
+            border-radius: 16px;
+            padding: 24px 26px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
+            color: #f8fafc;
+            font-family: inherit;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        `;
+
+        caixa.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px;">
                 <div style="
-                    width: 36px;
-                    height: 36px;
-                    min-width: 36px;
-                    border-radius: 10px;
+                    width: 40px;
+                    height: 40px;
+                    min-width: 40px;
+                    border-radius: 12px;
                     background: rgba(239, 68, 68, 0.15);
                     border: 1px solid rgba(239, 68, 68, 0.45);
                     color: #fca5a5;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 16px;
+                    font-size: 18px;
                     font-weight: bold;
                 ">!</div>
                 <div style="flex: 1;">
-                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: #60a5fa; font-weight: 700; margin-bottom: 3px;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: #60a5fa; font-weight: 700; margin-bottom: 4px;">
                         SchoolControl • Confirmação
                     </div>
-                    <h4 style="margin: 0 0 6px 0; font-size: 16px; color: #f8fafc; font-weight: 700;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 18px; color: #f8fafc; font-weight: 700;">
                         ${escaparHTML(titulo)}
                     </h4>
-                    <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #cbd5e1;">
+                    <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #cbd5e1;">
                         ${escaparHTML(mensagem)}
                     </p>
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
                 <button
                     type="button"
                     id="scBtnCancelarConfirmacao"
@@ -88,9 +98,9 @@ function confirmarAcaoSchoolControl({
                         background: #0f172a;
                         border: 1px solid #334155;
                         color: #cbd5e1;
-                        padding: 9px 16px;
+                        padding: 10px 18px;
                         border-radius: 8px;
-                        font-size: 13px;
+                        font-size: 13.5px;
                         font-weight: 600;
                         cursor: pointer;
                     "
@@ -104,9 +114,9 @@ function confirmarAcaoSchoolControl({
                         background: #dc2626;
                         border: 1px solid #ef4444;
                         color: #ffffff;
-                        padding: 9px 18px;
+                        padding: 10px 20px;
                         border-radius: 8px;
-                        font-size: 13px;
+                        font-size: 13.5px;
                         font-weight: 700;
                         cursor: pointer;
                         box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
@@ -117,19 +127,24 @@ function confirmarAcaoSchoolControl({
             </div>
         `;
 
-        document.body.appendChild(container);
+        overlay.appendChild(caixa);
+        document.body.appendChild(overlay);
 
         requestAnimationFrame(() => {
-            container.style.opacity = "1";
-            container.style.transform = "translateY(0)";
+            overlay.style.opacity = "1";
+            caixa.style.transform = "scale(1)";
         });
 
         const fechar = resposta => {
-            container.style.opacity = "0";
-            container.style.transform = "translateY(14px)";
-            setTimeout(() => container.remove(), 200);
+            overlay.style.opacity = "0";
+            caixa.style.transform = "scale(0.95)";
+            setTimeout(() => overlay.remove(), 180);
             resolve(resposta);
         };
+
+        overlay.addEventListener("click", event => {
+            if (event.target === overlay) fechar(false);
+        });
 
         document.getElementById("scBtnCancelarConfirmacao").onclick = () => fechar(false);
         document.getElementById("scBtnAceitarConfirmacao").onclick = () => fechar(true);
