@@ -1,5 +1,5 @@
 // ==========================================
-// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL (MODAL CENTRALIZADO)
+// SCHOOLCONTROL - PAINEL ADMINISTRATIVO EM TEMPO REAL
 // ==========================================
 
 const EMAIL_PADRAO = "admin@escola.com";
@@ -79,12 +79,12 @@ function confirmarAcaoSchoolControl({
                 ">!</div>
                 <div style="flex: 1;">
                     <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: #60a5fa; font-weight: 700; margin-bottom: 4px;">
-                        SchoolControl • Confirmação
+                        Confirmação
                     </div>
                     <h4 style="margin: 0 0 8px 0; font-size: 18px; color: #f8fafc; font-weight: 700;">
                         ${escaparHTML(titulo)}
                     </h4>
-                    <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #cbd5e1;">
+                    <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #cbd5e1;">
                         ${escaparHTML(mensagem)}
                     </p>
                 </div>
@@ -202,6 +202,167 @@ function notificarSchoolControl(mensagem, tipo = "sucesso") {
     }, 3400);
 }
 
+// ==========================================
+// BOTÃO DISCRETO E MODAL: CONFIGURAR QR CODE
+// ==========================================
+
+function inserirBotaoConfigurarQrCode() {
+    if (document.getElementById("btnAbrirConfigQr")) return;
+
+    const btnMudarSenha = Array.from(document.querySelectorAll("button")).find(
+        b => b.textContent && b.textContent.trim().toLowerCase().includes("mudar senha de admin")
+    );
+
+    const btnQr = document.createElement("button");
+    btnQr.id = "btnAbrirConfigQr";
+    btnQr.type = "button";
+    btnQr.textContent = "Configurar QR Code";
+    btnQr.onclick = abrirModalConfigurarQrCode;
+
+    if (btnMudarSenha) {
+        btnQr.className = btnMudarSenha.className;
+        const estiloOriginal = window.getComputedStyle(btnMudarSenha);
+        if (estiloOriginal.position === "fixed") {
+            const rect = btnMudarSenha.getBoundingClientRect();
+            btnQr.style.position = "fixed";
+            btnQr.style.bottom = estiloOriginal.bottom;
+            btnQr.style.left = `${rect.right + 12}px`;
+            btnQr.style.zIndex = estiloOriginal.zIndex || "1000";
+            document.body.appendChild(btnQr);
+        } else {
+            btnQr.style.marginLeft = "10px";
+            btnMudarSenha.insertAdjacentElement("afterend", btnQr);
+        }
+    } else {
+        btnQr.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 205px;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            color: #e2e8f0;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1000;
+        `;
+        document.body.appendChild(btnQr);
+    }
+}
+
+function abrirModalConfigurarQrCode() {
+    const anterior = document.getElementById("scModalConfigQr");
+    if (anterior) anterior.remove();
+
+    const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
+
+    const overlay = document.createElement("div");
+    overlay.id = "scModalConfigQr";
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.75);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 99999;
+    `;
+
+    overlay.innerHTML = `
+        <div style="
+            width: 460px;
+            max-width: 100%;
+            background: linear-gradient(145deg, #0b1324, #080d18);
+            border: 1px solid #1e3a5f;
+            border-top: 4px solid #3b82f6;
+            border-radius: 16px;
+            padding: 24px 26px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
+            color: #f8fafc;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 18px; color: #f8fafc;">Configurar QR Code Oficial</h3>
+                <button type="button" id="btnFecharModalQr" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 0 4px;">×</button>
+            </div>
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #94a3b8; line-height: 1.5;">
+                Gere uma nova chave de acesso para a portaria ou salve o link oficial sincronizado com os celulares.
+            </p>
+
+            <form id="formModalQrOficial">
+                <label for="inputModalQrOficial" style="display: block; font-size: 12.5px; color: #cbd5e1; margin-bottom: 6px; font-weight: 600;">
+                    Link / Conteúdo do QR Code Oficial
+                </label>
+                <input
+                    type="text"
+                    id="inputModalQrOficial"
+                    value="${escaparHTML(codigoAtual)}"
+                    placeholder="Clique em Gerar Novo QR Code"
+                    required
+                    style="width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid #334155; background: #080d18; color: #f8fafc; font-size: 13px; margin-bottom: 14px; box-sizing: border-box;"
+                >
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                    <button
+                        type="button"
+                        id="btnGerarNovoQrModal"
+                        style="background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;"
+                    >
+                        Gerar Novo QR Code
+                    </button>
+                    <button
+                        type="submit"
+                        style="background: #2563eb; border: 1px solid #3b82f6; color: #ffffff; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;"
+                    >
+                        Salvar QR Code Oficial
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const fecharModal = () => overlay.remove();
+
+    document.getElementById("btnFecharModalQr").onclick = fecharModal;
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) fecharModal();
+    });
+
+    document.getElementById("btnGerarNovoQrModal").onclick = () => {
+        const campo = document.getElementById("inputModalQrOficial");
+        const chaveSecreta = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
+        const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
+        campo.value = `${urlBase}/qrcode.html?chave=${chaveSecreta}`;
+    };
+
+    document.getElementById("formModalQrOficial").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const valor = document.getElementById("inputModalQrOficial").value.trim();
+        if (!valor) return;
+
+        localStorage.setItem("schoolcontrol_qr_oficial", valor);
+
+        if (window.supabaseAtivo && window.supabaseClient) {
+            try {
+                await window.supabaseClient.from("sc_config").upsert({
+                    chave: "qr_oficial",
+                    valor
+                });
+            } catch (erro) {
+                console.error("Erro ao salvar QR Code no Supabase:", erro);
+            }
+        }
+
+        fecharModal();
+        notificarSchoolControl("QR Code oficial atualizado e sincronizado!");
+    });
+}
+
 function atualizarIndicadorNuvem() {
     const badge = document.getElementById("badgeStatusNuvem");
     if (!badge) return;
@@ -232,10 +393,12 @@ function verificarSessaoAdmin() {
         atualizarIndicadorNuvem();
         atualizarResumo();
         mostrarTelaInicio();
+        inserirBotaoConfigurarQrCode();
         iniciarSincronizacaoSupabase();
     } else {
         telaLogin.style.display = "flex";
         painel.style.display = "none";
+        document.getElementById("btnAbrirConfigQr")?.remove();
     }
 }
 
@@ -407,8 +570,8 @@ async function carregarDadosSupabase() {
 
         if (resConfig.data && resConfig.data.valor) {
             localStorage.setItem("schoolcontrol_qr_oficial", resConfig.data.valor);
-            const inputQr = document.getElementById("inputQrOficial");
-            if (inputQr && !inputQr.value) inputQr.value = resConfig.data.valor;
+            const inputModalQr = document.getElementById("inputModalQrOficial");
+            if (inputModalQr && !inputModalQr.value) inputModalQr.value = resConfig.data.valor;
         }
 
         atualizarResumo();
@@ -541,7 +704,7 @@ function abrirTela(tela) {
 
 
 // ==========================================
-// 4. TELA INICIAL (QR CODE OFICIAL)
+// 4. TELA INICIAL LIMPA (SEM LINK EXPOSTO)
 // ==========================================
 
 function mostrarTelaInicio() {
@@ -549,77 +712,10 @@ function mostrarTelaInicio() {
     const area = document.getElementById("areaConteudo");
     if (!area) return;
 
-    const codigoAtual = localStorage.getItem("schoolcontrol_qr_oficial") || "";
-
     area.innerHTML = `
         <h2>Bem-vindo ao SchoolControl!</h2>
-        <p>Gerencie o QR Code da portaria, alunos e registros de acesso.</p>
-
-        <div class="painel-movimentacao" style="margin-top: 20px;">
-            <h3>QR Code Oficial da Escola</h3>
-            <p>
-                Gere ou cole o link oficial do QR Code da portaria.
-                Use o botão verde no topo para abrir a tela do QR Code em outra aba.
-            </p>
-
-            <form id="formQrOficial" style="margin-top: 14px;">
-                <label for="inputQrOficial">Link / Conteúdo do QR Code Oficial</label>
-                <input
-                    type="text"
-                    id="inputQrOficial"
-                    value="${escaparHTML(codigoAtual)}"
-                    placeholder="Clique em Gerar Novo QR Code"
-                    required
-                >
-
-                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-                    <button type="button" onclick="gerarCodigoAleatorioQR()">
-                        Gerar Novo QR Code
-                    </button>
-
-                    <button type="submit">
-                        Salvar QR Code Oficial
-                    </button>
-                </div>
-            </form>
-
-            <p id="statusQrOficial" style="margin-top: 12px; font-weight: bold; color: #60a5fa;">
-                ${codigoAtual ? "✓ QR Code oficial configurado e ativo." : "⚠ Usando QR Code padrão até você salvar um novo."}
-            </p>
-        </div>
+        <p>Gerencie o QR Code da portaria, alunos e registros de acesso em tempo real.</p>
     `;
-
-    document.getElementById("formQrOficial").addEventListener("submit", async function (event) {
-        event.preventDefault();
-        const valor = document.getElementById("inputQrOficial").value.trim();
-        if (!valor) return;
-
-        localStorage.setItem("schoolcontrol_qr_oficial", valor);
-
-        if (window.supabaseAtivo && window.supabaseClient) {
-            try {
-                await window.supabaseClient.from("sc_config").upsert({
-                    chave: "qr_oficial",
-                    valor
-                });
-            } catch (erro) {
-                console.error("Erro ao salvar QR Code no Supabase:", erro);
-            }
-        }
-
-        document.getElementById("statusQrOficial").textContent =
-            "✓ QR Code oficial salvo e sincronizado!";
-        notificarSchoolControl("QR Code oficial atualizado e sincronizado!");
-    });
-}
-
-function gerarCodigoAleatorioQR() {
-    const campo = document.getElementById("inputQrOficial");
-    if (!campo) return;
-
-    const chaveSecreta = "SCHOOLCONTROL-" + crypto.randomUUID().toUpperCase();
-    const urlBase = window.location.href.replace(/index\.html.*$/, "").replace(/\/$/, "");
-    campo.value = `${urlBase}/qrcode.html?chave=${chaveSecreta}`;
 }
 
 
