@@ -15,6 +15,178 @@ function obterCredenciaisAdmin() {
     return { email: EMAIL_PADRAO, senha: SENHA_PADRAO };
 }
 
+// ==========================================
+// COMPONENTES VISUAIS PERSONALIZADOS (CANTO INFERIOR DIREITO)
+// ==========================================
+
+function confirmarAcaoSchoolControl({
+    titulo = "Confirmar exclusão",
+    mensagem = "Tem certeza que deseja continuar?",
+    textoConfirmar = "Excluir",
+    textoCancelar = "Cancelar"
+}) {
+    return new Promise(resolve => {
+        const anterior = document.getElementById("scToastConfirmacao");
+        if (anterior) anterior.remove();
+
+        const container = document.createElement("div");
+        container.id = "scToastConfirmacao";
+        container.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 390px;
+            max-width: calc(100vw - 32px);
+            background: linear-gradient(145deg, #0b1324, #080d18);
+            border: 1px solid #1e3a5f;
+            border-left: 4px solid #ef4444;
+            border-radius: 14px;
+            padding: 20px 22px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65);
+            color: #f8fafc;
+            font-family: inherit;
+            z-index: 99999;
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity 0.22s ease, transform 0.22s ease;
+        `;
+
+        container.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;">
+                <div style="
+                    width: 36px;
+                    height: 36px;
+                    min-width: 36px;
+                    border-radius: 10px;
+                    background: rgba(239, 68, 68, 0.15);
+                    border: 1px solid rgba(239, 68, 68, 0.45);
+                    color: #fca5a5;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    font-weight: bold;
+                ">!</div>
+                <div style="flex: 1;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: #60a5fa; font-weight: 700; margin-bottom: 3px;">
+                        SchoolControl • Confirmação
+                    </div>
+                    <h4 style="margin: 0 0 6px 0; font-size: 16px; color: #f8fafc; font-weight: 700;">
+                        ${escaparHTML(titulo)}
+                    </h4>
+                    <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #cbd5e1;">
+                        ${escaparHTML(mensagem)}
+                    </p>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+                <button
+                    type="button"
+                    id="scBtnCancelarConfirmacao"
+                    style="
+                        background: #0f172a;
+                        border: 1px solid #334155;
+                        color: #cbd5e1;
+                        padding: 9px 16px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    "
+                >
+                    ${escaparHTML(textoCancelar)}
+                </button>
+                <button
+                    type="button"
+                    id="scBtnAceitarConfirmacao"
+                    style="
+                        background: #dc2626;
+                        border: 1px solid #ef4444;
+                        color: #ffffff;
+                        padding: 9px 18px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+                    "
+                >
+                    ${escaparHTML(textoConfirmar)}
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(container);
+
+        requestAnimationFrame(() => {
+            container.style.opacity = "1";
+            container.style.transform = "translateY(0)";
+        });
+
+        const fechar = resposta => {
+            container.style.opacity = "0";
+            container.style.transform = "translateY(14px)";
+            setTimeout(() => container.remove(), 200);
+            resolve(resposta);
+        };
+
+        document.getElementById("scBtnCancelarConfirmacao").onclick = () => fechar(false);
+        document.getElementById("scBtnAceitarConfirmacao").onclick = () => fechar(true);
+    });
+}
+
+function notificarSchoolControl(mensagem, tipo = "sucesso") {
+    const anterior = document.getElementById("scToastAviso");
+    if (anterior) anterior.remove();
+
+    const corBorda = tipo === "erro" ? "#ef4444" : "#10b981";
+    const corIcone = tipo === "erro" ? "#fca5a5" : "#6ee7b7";
+    const simbolo = tipo === "erro" ? "✕" : "✓";
+
+    const toast = document.createElement("div");
+    toast.id = "scToastAviso";
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 360px;
+        max-width: calc(100vw - 32px);
+        background: linear-gradient(145deg, #0b1324, #080d18);
+        border: 1px solid #1e3a5f;
+        border-left: 4px solid ${corBorda};
+        border-radius: 12px;
+        padding: 15px 18px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 99998;
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 0.22s ease, transform 0.22s ease;
+    `;
+
+    toast.innerHTML = `
+        <span style="color: ${corIcone}; font-weight: bold; font-size: 16px;">${simbolo}</span>
+        <span style="font-size: 13.5px; color: #e2e8f0; line-height: 1.4;">${escaparHTML(mensagem)}</span>
+    `;
+
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(12px)";
+        setTimeout(() => toast.remove(), 220);
+    }, 3400);
+}
+
 function atualizarIndicadorNuvem() {
     const badge = document.getElementById("badgeStatusNuvem");
     if (!badge) return;
@@ -162,7 +334,7 @@ document.getElementById("formDefinirNovaSenha")?.addEventListener("submit", func
     );
 
     fecharModalMudarSenha();
-    alert("Senha de administrador alterada com sucesso!");
+    notificarSchoolControl("Senha de administrador alterada com sucesso!");
 });
 
 
@@ -225,7 +397,7 @@ async function carregarDadosSupabase() {
         }
 
         atualizarResumo();
-        if (telaAtualAdmin === "alunos") atualizarListaAlunos();
+        if (telaAtualAdmin === "alunos") mostrarTelaAlunos();
         if (telaAtualAdmin === "entrada") mostrarTelaMovimentacao();
         if (telaAtualAdmin === "historico") filtrarHistorico();
         if (telaAtualAdmin === "relatorios") mostrarRelatorios();
@@ -422,7 +594,7 @@ function mostrarTelaInicio() {
 
         document.getElementById("statusQrOficial").textContent =
             "✓ QR Code oficial salvo e sincronizado!";
-        alert("QR Code oficial atualizado!");
+        notificarSchoolControl("QR Code oficial atualizado e sincronizado!");
     });
 }
 
@@ -486,17 +658,17 @@ async function cadastrarAluno(event) {
     const cpfFormatado = formatarCPF(cpfLimpo);
 
     if (!nome || !turma || !cpfLimpo) {
-        alert("Preencha todos os campos.");
+        notificarSchoolControl("Preencha todos os campos.", "erro");
         return;
     }
 
     if (!validarCPF(cpfLimpo)) {
-        alert("CPF inválido. Digite um CPF válido com 11 números.");
+        notificarSchoolControl("CPF inválido. Digite um CPF válido com 11 números.", "erro");
         return;
     }
 
     if (alunos.some(aluno => limparCPF(aluno.cpf || aluno.cpfLimpo || aluno.matricula) === cpfLimpo)) {
-        alert("Esse CPF já está cadastrado.");
+        notificarSchoolControl("Esse CPF já está cadastrado.", "erro");
         return;
     }
 
@@ -528,7 +700,7 @@ async function cadastrarAluno(event) {
     }
 
     mostrarTelaAlunos();
-    alert("Aluno cadastrado com sucesso!");
+    notificarSchoolControl("Aluno cadastrado com sucesso!");
 }
 
 async function excluirAlunoCompleto(cpfLimpoOuId) {
@@ -537,9 +709,14 @@ async function excluirAlunoCompleto(cpfLimpoOuId) {
     );
     if (!aluno) return;
 
-    if (!confirm(`Excluir "${aluno.nome}" do sistema e apagar todo o histórico dele?`)) {
-        return;
-    }
+    const aceitou = await confirmarAcaoSchoolControl({
+        titulo: "Excluir aluno do sistema?",
+        mensagem: `Deseja remover "${aluno.nome}" e apagar todo o histórico de entradas e saídas deste aluno?`,
+        textoConfirmar: "Excluir aluno",
+        textoCancelar: "Cancelar"
+    });
+
+    if (!aceitou) return;
 
     const cpfAlvo = limparCPF(aluno.cpfLimpo || aluno.cpf);
 
@@ -572,13 +749,21 @@ async function excluirAlunoCompleto(cpfLimpoOuId) {
     if (telaAtualAdmin === "historico") filtrarHistorico();
     if (telaAtualAdmin === "entrada") mostrarTelaMovimentacao();
     if (telaAtualAdmin === "relatorios") mostrarRelatorios();
+
+    notificarSchoolControl(`"${aluno.nome}" foi removido de todo o sistema.`);
 }
 
 async function excluirTodosAlunos() {
     if (alunos.length === 0) return;
-    if (!confirm("Tem certeza que deseja excluir TODOS os alunos e TODO o histórico do sistema?")) {
-        return;
-    }
+
+    const aceitou = await confirmarAcaoSchoolControl({
+        titulo: "Excluir todos os alunos?",
+        mensagem: "Essa ação removerá todos os alunos cadastrados e apagará todo o histórico da nuvem e do painel.",
+        textoConfirmar: "Excluir tudo",
+        textoCancelar: "Cancelar"
+    });
+
+    if (!aceitou) return;
 
     if (window.supabaseAtivo && window.supabaseClient) {
         try {
@@ -595,7 +780,7 @@ async function excluirTodosAlunos() {
     salvarMovimentacoesLocal();
     atualizarResumo();
     mostrarTelaAlunos();
-    alert("Todos os alunos e registros foram excluídos!");
+    notificarSchoolControl("Todos os alunos e registros foram excluídos!");
 }
 
 function atualizarListaAlunos() {
@@ -687,7 +872,7 @@ async function registrarMovimentacao(event) {
     const aluno = alunos.find(item => item.id === alunoId);
 
     if (!aluno || (tipo !== "Entrada" && tipo !== "Saída")) {
-        alert("Selecione um aluno válido.");
+        notificarSchoolControl("Selecione um aluno válido.", "erro");
         return;
     }
 
@@ -732,7 +917,7 @@ async function registrarMovimentacao(event) {
         mostrarTelaMovimentacao();
     }
 
-    alert(`${tipo} registrada com sucesso!`);
+    notificarSchoolControl(`${tipo} registrada com sucesso!`);
 }
 
 function mostrarMovimentacoesRecentes() {
@@ -859,9 +1044,14 @@ async function excluirRegistroUnico(registroId) {
     const registro = movimentacoes.find(m => m.id === registroId);
     if (!registro) return;
 
-    if (!confirm(`Excluir este registro de ${registro.tipo} de "${registro.nome}"? (Se desejar remover o aluno de todo o sistema, clique em OK e confirme a próxima pergunta.)`)) {
-        return;
-    }
+    const aceitou = await confirmarAcaoSchoolControl({
+        titulo: `Excluir registro de ${registro.tipo}?`,
+        mensagem: `Deseja apagar o registro de ${registro.tipo} de "${registro.nome}"?`,
+        textoConfirmar: "Excluir registro",
+        textoCancelar: "Cancelar"
+    });
+
+    if (!aceitou) return;
 
     if (window.supabaseAtivo && window.supabaseClient) {
         try {
@@ -880,9 +1070,13 @@ async function excluirRegistroUnico(registroId) {
     );
 
     if (!aindaTemRegistros) {
-        const removerAluno = confirm(
-            `"${registro.nome}" não possui mais movimentações. Deseja removê-lo também da lista de Alunos e de todas as abas?`
-        );
+        const removerAluno = await confirmarAcaoSchoolControl({
+            titulo: "Remover aluno também?",
+            mensagem: `"${registro.nome}" não possui mais movimentações. Deseja removê-lo também da aba Alunos e de todo o sistema?`,
+            textoConfirmar: "Remover aluno",
+            textoCancelar: "Manter cadastro"
+        });
+
         if (removerAluno) {
             if (window.supabaseAtivo && window.supabaseClient) {
                 try {
@@ -905,17 +1099,23 @@ async function excluirRegistroUnico(registroId) {
 
     filtrarHistorico();
     atualizarResumo();
+    notificarSchoolControl("Registro excluído com sucesso!");
 }
 
 async function limparHistorico() {
     if (movimentacoes.length === 0 && alunos.length === 0) {
-        alert("O histórico e a lista de alunos já estão vazios.");
+        notificarSchoolControl("O histórico e a lista de alunos já estão vazios.");
         return;
     }
 
-    if (!confirm("Tem certeza que deseja apagar TODO o histórico e remover TODOS os alunos de todas as abas?")) {
-        return;
-    }
+    const aceitou = await confirmarAcaoSchoolControl({
+        titulo: "Limpar histórico e alunos?",
+        mensagem: "Tem certeza que deseja apagar TODO o histórico e remover TODOS os alunos de todas as abas?",
+        textoConfirmar: "Limpar tudo",
+        textoCancelar: "Cancelar"
+    });
+
+    if (!aceitou) return;
 
     if (window.supabaseAtivo && window.supabaseClient) {
         try {
@@ -932,7 +1132,7 @@ async function limparHistorico() {
     salvarAlunosLocal();
     filtrarHistorico();
     atualizarResumo();
-    alert("Histórico e alunos apagados com sucesso de todas as abas!");
+    notificarSchoolControl("Histórico e alunos apagados de todas as abas!");
 }
 
 function mostrarRelatorios() {
@@ -984,7 +1184,7 @@ function aplicarFiltrosRelatorio() {
     const resultado = document.getElementById("resultadoFiltroRelatorio");
 
     if (!inicial || !final || inicial > final) {
-        alert("Verifique as datas informadas.");
+        notificarSchoolControl("Verifique as datas informadas.", "erro");
         return;
     }
 
@@ -1016,7 +1216,7 @@ function exportarRelatorioCSV() {
     });
 
     if (registros.length === 0) {
-        alert("Não existem movimentações para exportar.");
+        notificarSchoolControl("Não existem movimentações para exportar.", "erro");
         return;
     }
 
