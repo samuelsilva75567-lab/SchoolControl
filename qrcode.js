@@ -229,15 +229,17 @@ async function verificarAlunoAtivoNaNuvem(cpfLimpo) {
                 .eq("cpf_limpo", cpfLimpo)
                 .maybeSingle();
 
-            if (!error) {
-                return data || null; // null significa que foi excluído ou não existe
+            if (error) {
+                console.error("Erro ao consultar sc_alunos:", error);
+                return null;
             }
+            return data || null;
         } catch (erro) {
-            console.warn("Erro ao verificar cadastro do aluno no Supabase:", erro);
+            console.error("Falha de rede ao consultar sc_alunos:", erro);
+            return null;
         }
     }
 
-    // Fallback se estiver offline
     const alunosLocais = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
     return alunosLocais.find(a => limparCPF(a.cpf || a.cpf_limpo) === cpfLimpo) || null;
 }
@@ -260,7 +262,6 @@ function escutarExclusaoAlunoEmTempoReal(cpfLimpo) {
                 table: "sc_alunos"
             },
             async () => {
-                // Confirma se o CPF deste celular sumiu da tabela sc_alunos
                 const aindaExiste = await verificarAlunoAtivoNaNuvem(cpfLimpo);
                 if (!aindaExiste) {
                     limparSessaoLocalAluno(cpfLimpo);
@@ -382,7 +383,7 @@ function solicitarIdentificacaoUnica(avisoExtra = "") {
         if (!nome || !turma) return;
 
         btnSalvar.disabled = true;
-        btnSalvar.textContent = "Sincronizando...";
+        btnSalvar.textContent = "Salvando cadastro...";
 
         let alunoFinal = {
             id: crypto.randomUUID(),
@@ -394,39 +395,52 @@ function solicitarIdentificacaoUnica(avisoExtra = "") {
 
         if (window.supabaseAtivo && window.supabaseClient) {
             try {
-                const { data: existente } = await window.supabaseClient
+                // Grava ou atualiza obrigatoriamente na tabela sc_alunos antes de liberar
+                const { data: salvoNuvem, error: erroSalvar } = await window.supabaseClient
                     .from("sc_alunos")
-                    .select("*")
-                    .eq("cpf_limpo", cpfLimpo)
-                    .maybeSingle();
+                    .upsert(
+                        {
+                            cpf_limpo: cpfLimpo,
+                            id: alunoFinal.id,
+                            nome: alunoFinal.nome,
+                            turma: alunoFinal.turma,
+                            cpf: alunoFinal.cpf
+                        },
+                        { onConflict: "cpf_limpo" }
+                    )
+                    .select()
+                    .single();
 
-                if (existente) {
+                if (erroSalvar) {
+                    erroBox.textContent = `Erro ao registrar no servidor: ${erroSalvar.message}`;
+                    erroBox.style.display = "block";
+                    btnSalvar.disabled = false;
+                    btnSalvar.textContent = "Salvar no Celular e Liberar";
+                    return;
+                }
+
+                if (salvoNuvem) {
                     alunoFinal = {
-                        id: existente.id,
-                        nome: existente.nome,
-                        turma: existente.turma,
-                        cpf: existente.cpf,
-                        cpfLimpo: existente.cpf_limpo
+                        id: salvoNuvem.id,
+                        nome: salvoNuvem.nome,
+                        turma: salvoNuvem.turma,
+                        cpf: salvoNuvem.cpf,
+                        cpfLimpo: salvoNuvem.cpf_limpo
                     };
-                } else {
-                    await window.supabaseClient.from("sc_alunos").insert({
-                        cpf_limpo: cpfLimpo,
-                        id: alunoFinal.id,
-                        nome: alunoFinal.nome,
-                        turma: alunoFinal.turma,
-                        cpf: alunoFinal.cpf
-                    });
                 }
             } catch (erro) {
-                console.error("Erro ao salvar aluno no Supabase:", erro);
+                erroBox.textContent = "Sem conexão com o servidor. Tente novamente.";
+                erroBox.style.display = "block";
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar no Celular e Liberar";
+                return;
             }
         }
 
         const alunosLocais = JSON.parse(localStorage.getItem("schoolcontrol_alunos") || "[]");
-        if (!alunosLocais.some(a => limparCPF(a.cpf || a.cpf_limpo || a.matricula) === cpfLimpo)) {
-            alunosLocais.push(alunoFinal);
-            localStorage.setItem("schoolcontrol_alunos", JSON.stringify(alunosLocais));
-        }
+        const filtrados = alunosLocais.filter(a => limparCPF(a.cpf || a.cpf_limpo || a.matricula) !== cpfLimpo);
+        filtrados.push(alunoFinal);
+        localStorage.setItem("schoolcontrol_alunos", JSON.stringify(filtrados));
 
         const perfilDispositivo = {
             id: alunoFinal.id,
@@ -437,7 +451,7 @@ function solicitarIdentificacaoUnica(avisoExtra = "") {
         };
 
         localStorage.setItem("schoolcontrol_aluno_dispositivo", JSON.stringify(perfilDispositivo));
-        await liberarAcessoEmUmSegundo(perfilDispositivo);
+        await liberarAcessoEmUmSegundo(perfilDispositivo, true);
     });
 }
 
@@ -493,27 +507,32 @@ async function gravarMovimentacaoNuvemELocal(registro) {
     }
 
     const locais = JSON.parse(localStorage.getItem("schoolcontrol_movimentacoes") || "[]");
-    locais.unshift(registro);
-    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(locais));
+    const semDuplicado = locais.filter(m => m.id !== registro.id);
+    semDuplicado.unshift(registro);
+    localStorage.setItem("schoolcontrol_movimentacoes", JSON.stringify(semDuplicado));
 }
 
-async function liberarAcessoEmUmSegundo(perfilAluno) {
+async function liberarAcessoEmUmSegundo(perfilAluno, recemCadastrado = false) {
     painelQrEscola.style.display = "none";
     resultadoLeitura.style.display = "block";
     resultadoLeitura.style.borderColor = "#3b82f6";
-    mensagemResultado.innerHTML = `<p style="color: #93c5fd; font-weight: bold;">⚡ Validando cadastro na nuvem...</p>`;
+    mensagemResultado.innerHTML = `<p style="color: #93c5fd; font-weight: bold;">⚡ Validando cadastro...</p>`;
 
     const cpfLimpoAtual = limparCPF(perfilAluno.cpfLimpo || perfilAluno.cpf);
+    let alunoAtivo = perfilAluno;
 
-    // 1. Verifica antes de tudo se o aluno ainda existe na tabela sc_alunos
-    const alunoAtivo = await verificarAlunoAtivoNaNuvem(cpfLimpoAtual);
-    if (!alunoAtivo) {
-        limparSessaoLocalAluno(cpfLimpoAtual);
-        solicitarIdentificacaoUnica("Seu cadastro não foi encontrado ou foi removido pelo administrador.");
-        return;
+    // Se não acabou de ser cadastrado neste instante, verifica se continua ativo no Supabase
+    if (!recemCadastrado) {
+        const encontrado = await verificarAlunoAtivoNaNuvem(cpfLimpoAtual);
+        if (!encontrado) {
+            limparSessaoLocalAluno(cpfLimpoAtual);
+            solicitarIdentificacaoUnica("Seu cadastro não foi encontrado ou foi removido pelo administrador.");
+            return;
+        }
+        alunoAtivo = encontrado;
     }
 
-    // 2. Inicia escuta em tempo real caso o admin remova enquanto a tela estiver aberta
+    // Inicia escuta em tempo real caso o admin remova o aluno enquanto a tela estiver aberta
     escutarExclusaoAlunoEmTempoReal(cpfLimpoAtual);
 
     const agora = new Date();
@@ -719,7 +738,7 @@ async function iniciarPaginaQr() {
         );
 
         if (alunoSalvo && alunoSalvo.nome && validarCPF(alunoSalvo.cpfLimpo || alunoSalvo.cpf)) {
-            await liberarAcessoEmUmSegundo(alunoSalvo);
+            await liberarAcessoEmUmSegundo(alunoSalvo, false);
         } else {
             limparSessaoLocalAluno();
             solicitarIdentificacaoUnica();
